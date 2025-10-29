@@ -1,6 +1,7 @@
 import express from "express";
 import cors from 'cors'
 import connectDB from "./src/config/DataBase.js";
+import pubmedRoutes from './src/routes/pubmedRoutes.js';
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.get("/" , (req,res)=>{
     res.send("Backend API is Running...")
 })
 
+app.use("/api/pubmed", pubmedRoutes);
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
