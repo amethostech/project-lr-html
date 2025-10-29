@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Amethintel I — Search Submit</title>
+  <style>
+    /* Minimal clean styling so it looks good on Hostinger without external deps */
+    :root {
+      --accent: #1f6feb;
+      --muted: #666;
+    }
+
+    body {
+      font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial;
+      line-height: 1.45;
+      margin: 0;
+      padding: 20px;
+      background: #f7f9fc;
+      color: #0b1220;
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 22px;
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 20px
+    }
+
+    p.lead {
+      margin: 0 0 18px;
+      color: var(--muted)
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap
+    }
+
+    label {
+      font-size: 13px;
+      color: #111;
+      margin-bottom: 6px;
+      display: block
+    }
+
+    .card {
+      background: #fbfdff;
+      border: 1px solid #e6eefc;
+      padding: 12px;
+      border-radius: 8px
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #dbe7fb;
+      background: white;
+    }
+
+    button {
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid #d0d7e8;
+      color: var(--accent)
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .keywords {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px
+    }
+
+    .operator {
+      width: 100%
+    }
+
+    .db-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px
+    }
+
+    .db-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #eef6ff;
+      background: #ffffff
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 40
+    }
+
+    .modal {
+      width: 520px;
+      background: white;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 12px 36px rgba(2, 6, 23, 0.25)
+    }
+
+    .modal h3 {
+      margin-top: 0
+    }
+
+    .flex {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap
+    }
+
+    .chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #e6eefc;
+      background: #f6fbff;
+      font-size: 13px
+    }
+
+    footer {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 14px
+    }
+
+    @media(max-width:720px) {
+      .keywords {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .db-list {
+        grid-template-columns: 1fr
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Amethintel I — Search Submit</h1>
+    <p class="lead">Enter up to 5 keywords (combine with AND / OR), choose year/region filters and select databases.
+      Each selected DB can be configured separately. On submit, data is logged to Google Sheets.</p>
+
+    <!-- MAIN FORM -->
+    <form id="searchForm" class="card" onsubmit="return false;">
+      <!-- Keywords -->
+      <div style="margin-bottom:12px">
+        <label>Keywords (up to 5) <span class="small">— add/remove as needed</span></label>
+        <div id="keywordsContainer" class="keywords"></div>
+        <div style="margin-top:8px" class="row">
+          <button id="addKeyword" type="button" class="btn-ghost">+ Add Keyword</button>
+          <button id="removeKeyword" type="button" class="btn-ghost">− Remove</button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div style="margin-bottom:12px">
+        <label>Year Range</label>
+        <div class="row" style="gap:8px">
+          <div style="flex:1">
+            <input type="number" id="yearFrom" placeholder="From (e.g., 2018)" min="1900" max="2100" />
+          </div>
+          <div style="flex:1">
+            <input type="number" id="yearTo" placeholder="To (e.g., 2025)" min="1900" max="2100" />
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label>Region / Country</label>
+        <select id="regions" multiple size="4" style="min-height:80px">
+          <option value="Global">Global</option>
+          <option value="North America">North America</option>
+          <option value="Europe">Europe</option>
+          <option value="Asia">Asia</option>
+          <option value="South America">South America</option>
+          <option value="Africa">Africa</option>
+          <option value="Oceania">Oceania</option>
+        </select>
+        <div class="small" style="margin-top:6px">Hold Ctrl / Cmd to multi-select (or tap to choose multiple).</div>
+      </div>
+
+      <!-- Databases -->
+      <div style="margin-bottom:12px">
+        <label>Select Databases to configure</label>
+        <div class="db-list" id="dbList">
+          <!-- Database items populated by JS -->
+        </div>
+        <div class="small" style="margin-top:6px">You can select multiple databases. Each selection will open a
+          configuration popup. Actual search will be run one DB at a time.</div>
+      </div>
+
+      <!-- Submission -->
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <button type="button" id="submitBtn">Submit Search</button>
+        <button type="button" id="clearBtn" class="btn-ghost">Clear</button>
+        <div id="status" class="status"></div>
+      </div>
+    </form>
+
+    <footer>
+      <div>Instructions: After deployment, set the <code>GOOGLE_SCRIPT_URL</code> in the script section. See Apps Script
+        snippet below for the Google Sheet side.</div>
+    </footer>
+  </div>
+
+  <!-- MODAL CONTAINER -->
+  <div id="modalRoot" style="display:none"></div>
+
+  <script>
+    /***************************************************************
+     * CONFIG: Replace the placeholder with your Apps Script URL
+     * Deploy Apps Script as "Web app" (execute as: Me, who has access),
+     * and allow "Anyone, even anonymous" if you don't use OAuth.
+     ***************************************************************/
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxHMnKrwQ7lGNX33ph7WuLhg-pwN2IUg5PMySpZqu6JpTnrf4V7ky4vHQ_Scs-lA4xQ6g/exec";
+
+    /***************************************************************
+     * DATABASES: Define databases and the modal fields required
+     * Each db has id, label, and fields array. Fields are {key,label,type,opts}
+     ***************************************************************/
+    const DATABASES = [
+      {
+        id: "ncbi_gene",
+        label: "NCBI Gene / Ensembl",
+        group: "Genomics",
+        fields: [
+          { key: "organism", label: "Organism", type: "select", opts: ["Human", "Mouse", "Rat", "Other"] },
+          { key: "gene_type", label: "Gene Type", type: "select", opts: ["Protein-coding", "Non-coding", "All"] },
+          { key: "variant_type", label: "select_variant", labelAlt: "Variant Type", type: "select", opts: ["SNP", "CNV", "Indel", "Any"] }
+        ]
+      },
+      {
+        id: "pubchem",
+        label: "PubChem / ChEMBL",
+        group: "Molecules",
+        fields: [
+          { key: "molecule", label: "Molecule Name or CID", type: "text" },
+          { key: "bioassay", label: "BioAssay Type", type: "select", opts: ["Binding", "Functional", "ADME", "Any"] },
+          { key: "target_class", label: "Target Class", type: "text" }
+        ]
+      },
+      {
+        id: "clinicaltrials",
+        label: "ClinicalTrials.gov",
+        group: "Trials",
+        fields: [
+          { key: "phase", label: "Trial Phase", type: "select", opts: ["Phase 1", "Phase 2", "Phase 3", "Phase 4", "Any"] },
+          { key: "status", label: "Status", type: "select", opts: ["Recruiting", "Completed", "Terminated", "Any"] },
+          { key: "sponsor_type", label: "Sponsor Type", type: "select", opts: ["Industry", "Academic", "Govt", "Any"] }
+        ]
+      },
+      {
+        id: "pubmed",
+        label: "PubMed / Europe PMC",
+        group: "Publications",
+        fields: [
+          { key: "pub_type", label: "Publication Type", type: "select", opts: ["Review", "Clinical Trial", "Meta-analysis", "Any"] },
+          { key: "author", label: "Author / Keyword", type: "text" },
+          { key: "impact_filter", label: "Min Journal Impact Factor (optional)", type: "number" }
+        ]
+      },
+      {
+        id: "news",
+        label: "News / Press Releases",
+        group: "News",
+        fields: [
+          { key: "date_from", label: "Date From (YYYY-MM-DD)", type: "text" },
+          { key: "date_to", label: "Date To (YYYY-MM-DD)", type: "text" },
+          { key: "company", label: "Company/Drug Name", type: "text" },
+          { key: "news_type", label: "Filter Type", type: "select", opts: ["M&A", "Regulatory", "Trial Result", "Patent", "Any"] }
+        ]
+      },
+      {
+        id: "patents",
+        label: "Patents Database",
+        group: "Intellectual Property",
+        fields: [
+          { key: "patent_office", label: "Patent Office", type: "select", opts: ["USPTO", "EPO", "WIPO", "Indian Patent Office", "Any"] },
+          { key: "patent_status", label: "Patent Status", type: "select", opts: ["Granted", "Pending", "Expired", "Withdrawn", "Any"] },
+          { key: "assignee", label: "Assignee / Applicant", type: "text" },
+          { key: "inventor", label: "Inventor Name", type: "text" },
+          { key: "date_from", label: "Filing Date From (YYYY-MM-DD)", type: "text" },
+          { key: "date_to", label: "Filing Date To (YYYY-MM-DD)", type: "text" },
+          { key: "keywords", label: "Patent Title / Abstract Keywords", type: "text" }
+        ]
+      },
+    ];
+
+    /***************************************************************
+     * STATE
+     ***************************************************************/
+    const state = {
+      keywords: [], // array of {value, operatorAfter} length <=5
+      dbParams: {}, // dbId -> params object
+      selectedDbs: new Set()
+    };
+
+    /***************************************************************
+     * UI Helpers: Build keywords inputs and DB list
+     ***************************************************************/
+    function createKeywordInput(index, value = "", operator = "AND") {
+      const wrapper = document.createElement("div");
+      wrapper.style.display = "flex";
+      wrapper.style.gap = "6px";
+      wrapper.style.alignItems = "center";
+
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.placeholder = `Keyword ${index + 1}`;
+      inp.value = value;
+      inp.dataset.idx = index;
+      inp.addEventListener("input", () => {
+        ensureStateKeywords();
+        state.keywords[index].value = inp.value.trim();
+      });
+
+      const op = document.createElement("select");
+      op.className = "operator";
+      ["AND", "OR"].forEach(o => {
+        const opt = document.createElement("option"); opt.value = o; opt.textContent = o; op.appendChild(opt);
+      });
+      op.value = operator;
+      op.addEventListener("change", () => {
+        ensureStateKeywords();
+        state.keywords[index].operatorAfter = op.value;
+      });
+
+      wrapper.appendChild(inp);
+      wrapper.appendChild(op);
+      return wrapper;
+    }
+
+    function renderKeywords() {
+      const cont = document.getElementById("keywordsContainer");
+      cont.innerHTML = "";
+      // ensure there's at least 1 input
+      if (state.keywords.length === 0) {
+        state.keywords.push({ value: "", operatorAfter: "AND" });
+      }
+      state.keywords.forEach((k, i) => {
+        cont.appendChild(createKeywordInput(i, k.value || "", k.operatorAfter || "AND"));
+      });
+    }
+
+    function ensureStateKeywords() {
+      // trim array to max 5 and remove trailing empties optionally
+      state.keywords = state.keywords.slice(0, 5);
+      while (state.keywords.length < 1) state.keywords.push({ value: "", operatorAfter: "AND" });
+    }
+
+    // Add/remove keyword handlers
+    document.addEventListener("DOMContentLoaded", () => {
+      const addBtn = document.getElementById("addKeyword");
+      const remBtn = document.getElementById("removeKeyword");
+      addBtn.addEventListener("click", () => {
+        if (state.keywords.length >= 5) return alert("Maximum 5 keywords allowed.");
+        state.keywords.push({ value: "", operatorAfter: "AND" });
+        renderKeywords();
+      });
+      remBtn.addEventListener("click", () => {
+        if (state.keywords.length <= 1) return;
+        state.keywords.pop();
+        renderKeywords();
+      });
+      renderKeywords();
+      renderDbList();
+      document.getElementById("submitBtn").addEventListener("click", submitSearch);
+      document.getElementById("clearBtn").addEventListener("click", clearForm);
+    });
+
+    /***************************************************************
+     * Render DB list with checkboxes and hookup modal open
+     ***************************************************************/
+    function renderDbList() {
+      const root = document.getElementById("dbList");
+      root.innerHTML = "";
+      DATABASES.forEach(db => {
+        const item = document.createElement("label");
+        item.className = "db-item";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.style.transform = "scale(1.1)";
+        cb.dataset.dbid = db.id;
+        cb.addEventListener("change", (e) => {
+          const id = e.target.dataset.dbid;
+          if (e.target.checked) {
+            state.selectedDbs.add(id);
+            // open modal to configure
+            openDbModal(db);
+          } else {
+            state.selectedDbs.delete(id);
+            // clear stored params for that db
+            delete state.dbParams[id];
+          }
+        });
+
+        const name = document.createElement("div");
+        name.style.flex = "1";
+        name.innerHTML = `<strong style="display:block">${db.label}</strong><span class="small">${db.group}</span>`;
+
+        const cfgBut = document.createElement("button");
+        cfgBut.type = "button";
+        cfgBut.className = "btn-ghost";
+        cfgBut.textContent = "Edit";
+        cfgBut.addEventListener("click", (e) => {
+          // if not checked, check it
+          if (!state.selectedDbs.has(db.id)) {
+            cb.checked = true; state.selectedDbs.add(db.id);
+          }
+          openDbModal(db);
+        });
+
+        item.appendChild(cb);
+        item.appendChild(name);
+        item.appendChild(cfgBut);
+        root.appendChild(item);
+      });
+    }
+
+    /***************************************************************
+     * Modal: Build DB config modal based on database.fields
+     ***************************************************************/
+    function openDbModal(dbDef) {
+      const root = document.getElementById("modalRoot");
+      root.style.display = "block";
+      root.innerHTML = `
+        <div class="modal-backdrop" id="modalBackdrop">
+          <div class="modal card" role="dialog" aria-modal="true">
+            <h3>Configure: ${dbDef.label}</h3>
+            <div id="modalForm"></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+              <button id="modalCancel" class="btn-ghost">Cancel</button>
+              <button id="modalSave">Save</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const modalForm = document.getElementById("modalForm");
+      modalForm.style.maxHeight = "60vh";
+      modalForm.style.overflow = "auto";
+
+      // populate fields with current saved params if any
+      const current = state.dbParams[dbDef.id] || {};
+
+      dbDef.fields.forEach(f => {
+        const wrapper = document.createElement("div");
+        wrapper.style.marginBottom = "10px";
+        const label = document.createElement("label");
+        label.textContent = (f.labelAlt || f.label);
+        wrapper.appendChild(label);
+
+        let fieldEl;
+        if (f.type === "select") {
+          fieldEl = document.createElement("select");
+          f.opts.forEach(o => { const opt = document.createElement("option"); opt.value = o; opt.textContent = o; fieldEl.appendChild(opt); });
+          fieldEl.value = current[f.key] || f.opts[0];
+        } else if (f.type === "number") {
+          fieldEl = document.createElement("input");
+          fieldEl.type = "number";
+          fieldEl.value = current[f.key] || "";
+        } else {
+          // text or default
+          fieldEl = document.createElement("input");
+          fieldEl.type = "text";
+          fieldEl.value = current[f.key] || "";
+        }
+        fieldEl.dataset.fieldKey = f.key;
+        wrapper.appendChild(fieldEl);
+        modalForm.appendChild(wrapper);
+      });
+
+      document.getElementById("modalCancel").addEventListener("click", () => {
+        // If user cancels and db wasn't previously saved, uncheck
+        if (!state.dbParams[dbDef.id]) {
+          // uncheck checkbox in db list
+          document.querySelector(`input[data-dbid="${dbDef.id}"]`).checked = true; // keep checked so they can edit later
+        }
+        root.style.display = "none";
+        root.innerHTML = "";
+      });
+
+      document.getElementById("modalSave").addEventListener("click", () => {
+        // collect values
+        const inputs = modalForm.querySelectorAll("[data-field-key]");
+        const params = {};
+        inputs.forEach(inp => {
+          const key = inp.dataset.fieldKey;
+          params[key] = inp.value;
+        });
+        state.dbParams[dbDef.id] = params;
+        root.style.display = "none";
+        root.innerHTML = "";
+        showStatus(`Saved settings for ${dbDef.label}`, 3000);
+      });
+    }
+
+    /***************************************************************
+     * Submit: Collect all fields and POST to Google Script
+     ***************************************************************/
+    async function submitSearch() {
+      // basic validation
+      if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("REPLACE_WITH")) {
+        return alert("Please set the GOOGLE_SCRIPT_URL at top of the file to your Apps Script Web App URL before submitting.");
+      }
+
+      // collect keywords
+      const keywords = state.keywords.map(k => ({ value: k.value || "", operatorAfter: k.operatorAfter || "AND" }))
+        .filter(k => k.value && k.value.trim().length > 0);
+
+      if (keywords.length === 0) return alert("Please enter at least one keyword.");
+
+      const yearFrom = document.getElementById("yearFrom").value;
+      const yearTo = document.getElementById("yearTo").value;
+
+      // regions (multi-select)
+      const regionsSelect = document.getElementById("regions");
+      const selectedRegions = Array.from(regionsSelect.selectedOptions).map(o => o.value);
+
+      // selected DBs and their params
+      const selectedDbs = Array.from(state.selectedDbs);
+      const dbParams = {};
+      selectedDbs.forEach(id => { dbParams[id] = state.dbParams[id] || {}; });
+
+      // build payload
+      const payload = {
+        timestamp: new Date().toISOString(),
+        keywords,
+        yearFrom: yearFrom || null,
+        yearTo: yearTo || null,
+        regions: selectedRegions,
+        selectedDbs,
+        dbParams,
+        source: "hostinger_frontend_v1"
+      };
+
+      // POST
+      try {
+        showStatus("Submitting…");
+        const resp = await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          mode: "cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `Status ${resp.status}`);
+        showStatus("Submitted successfully ✅", 5000);
+      } catch (err) {
+        console.error(err);
+        showStatus("Error submitting — check console and Apps Script deployment.", 7000);
+        alert("Submission failed. Open browser console for details.");
+      }
+    }
+
+    function showStatus(msg, ttl = 2000) {
+      const s = document.getElementById("status");
+      s.textContent = msg;
+      if (ttl) setTimeout(() => { if (s.textContent === msg) s.textContent = ""; }, ttl);
+    }
+
+    function clearForm() {
+      // reset state and UI
+      state.keywords = [{ value: "", operatorAfter: "AND" }];
+      state.dbParams = {};
+      state.selectedDbs = new Set();
+      renderKeywords();
+      // uncheck all DB checkboxes
+      document.querySelectorAll("#dbList input[type=checkbox]").forEach(cb => cb.checked = false);
+      document.getElementById("yearFrom").value = "";
+      document.getElementById("yearTo").value = "";
+      document.getElementById("regions").selectedIndex = 0;
+      showStatus("Form cleared", 2000);
+    }
+  </script>
+</body>
+
+</html>
