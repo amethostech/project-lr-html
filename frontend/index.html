@@ -186,7 +186,7 @@
   <div class="container">
     <h1>Amethintel I — Search Submit</h1>
     <p class="lead">Enter up to 5 keywords (combine with AND / OR), choose year/region filters and select databases.
-      Each selected DB can be configured separately. On submit, data is logged to Google Sheets.</p>
+      Each selected DB can be configured separately. On submit, data is sent to the backend.</p>
 
     <!-- MAIN FORM -->
     <form id="searchForm" class="card" onsubmit="return false;">
@@ -200,16 +200,24 @@
         </div>
       </div>
 
-      <!-- Filters -->
+      <!-- Filters (updated IDs to match backend expectation) -->
       <div style="margin-bottom:12px">
         <label>Year Range</label>
         <div class="row" style="gap:8px">
           <div style="flex:1">
-            <input type="number" id="yearFrom" placeholder="From (e.g., 2018)" min="1900" max="2100" />
+            <input type="number" id="dateFrom" placeholder="From (e.g., 2018)" min="1900" max="2100" />
           </div>
           <div style="flex:1">
-            <input type="number" id="yearTo" placeholder="To (e.g., 2025)" min="1900" max="2100" />
+            <input type="number" id="dateTo" placeholder="To (e.g., 2025)" min="1900" max="2100" />
           </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label>Max results</label>
+        <div class="row" style="gap:8px;max-width:240px">
+          <input type="number" id="maxResults" value="100" min="1" max="10000" />
+          <div class="small">Limit results sent by the backend (1–10000)</div>
         </div>
       </div>
 
@@ -246,8 +254,7 @@
     </form>
 
     <footer>
-      <div>Instructions: After deployment, set the <code>GOOGLE_SCRIPT_URL</code> in the script section. See Apps Script
-        snippet below for the Google Sheet side.</div>
+      <div>Instructions: After deployment, set the BACKEND_URL constant in the script if needed.</div>
     </footer>
   </div>
 
@@ -256,15 +263,13 @@
 
   <script>
     /***************************************************************
-     * CONFIG: Replace the placeholder with your Apps Script URL
-     * Deploy Apps Script as "Web app" (execute as: Me, who has access),
-     * and allow "Anyone, even anonymous" if you don't use OAuth.
+     * CONFIG: backend endpoint
      ***************************************************************/
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxHMnKrwQ7lGNX33ph7WuLhg-pwN2IUg5PMySpZqu6JpTnrf4V7ky4vHQ_Scs-lA4xQ6g/exec";
+    const BACKEND_URL = "http://localhost:3000/api/pubmed/search";
 
     /***************************************************************
-     * DATABASES: Define databases and the modal fields required
-     * Each db has id, label, and fields array. Fields are {key,label,type,opts}
+     * DATABASES and UI code (unchanged)...
+     * ...existing code...
      ***************************************************************/
     const DATABASES = [
       {
@@ -544,22 +549,24 @@
     }
 
     /***************************************************************
-     * Submit: Collect all fields and POST to Google Script
+     * Submit: Collect all fields and POST to backend API
      ***************************************************************/
     async function submitSearch() {
-      // basic validation
-      if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("REPLACE_WITH")) {
-        return alert("Please set the GOOGLE_SCRIPT_URL at top of the file to your Apps Script Web App URL before submitting.");
+      if (!BACKEND_URL) {
+        return alert("Please set BACKEND_URL at top of the file before submitting.");
       }
 
-      // collect keywords
-      const keywords = state.keywords.map(k => ({ value: k.value || "", operatorAfter: k.operatorAfter || "AND" }))
+      const keywords = state.keywords
+        .map(k => ({ value: k.value || "", operatorAfter: k.operatorAfter || "AND" }))
         .filter(k => k.value && k.value.trim().length > 0);
 
       if (keywords.length === 0) return alert("Please enter at least one keyword.");
 
-      const yearFrom = document.getElementById("yearFrom").value;
-      const yearTo = document.getElementById("yearTo").value;
+      // Read dateFrom/dateTo and maxResults (IDs now match backend)
+      const dateFrom = (document.getElementById("dateFrom") || {}).value || null;
+      const dateTo = (document.getElementById("dateTo") || {}).value || null;
+      const maxResultsInput = (document.getElementById("maxResults") || {}).value || "100";
+      const maxResults = Math.min(Math.max(parseInt(maxResultsInput || "100", 10) || 1, 1), 10000);
 
       // regions (multi-select)
       const regionsSelect = document.getElementById("regions");
@@ -570,33 +577,35 @@
       const dbParams = {};
       selectedDbs.forEach(id => { dbParams[id] = state.dbParams[id] || {}; });
 
-      // build payload
+      // build payload expected by backend
       const payload = {
         timestamp: new Date().toISOString(),
-        keywords,
-        yearFrom: yearFrom || null,
-        yearTo: yearTo || null,
+        keywords,            // array of {value, operatorAfter}
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        maxResults,
         regions: selectedRegions,
         selectedDbs,
         dbParams,
         source: "hostinger_frontend_v1"
       };
 
-      // POST
       try {
         showStatus("Submitting…");
-        const resp = await fetch(GOOGLE_SCRIPT_URL, {
+        const resp = await fetch(BACKEND_URL, {
           method: "POST",
           mode: "cors",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        const text = await resp.text();
-        if (!resp.ok) throw new Error(text || `Status ${resp.status}`);
+        if (!resp.ok) {
+          const txt = await resp.text().catch(()=>"");
+          throw new Error(txt || `Status ${resp.status}`);
+        }
         showStatus("Submitted successfully ✅", 5000);
       } catch (err) {
         console.error(err);
-        showStatus("Error submitting — check console and Apps Script deployment.", 7000);
+        showStatus("Error submitting — check console.", 7000);
         alert("Submission failed. Open browser console for details.");
       }
     }
@@ -615,11 +624,40 @@
       renderKeywords();
       // uncheck all DB checkboxes
       document.querySelectorAll("#dbList input[type=checkbox]").forEach(cb => cb.checked = false);
-      document.getElementById("yearFrom").value = "";
-      document.getElementById("yearTo").value = "";
+      document.getElementById("dateFrom").value = "";
+      document.getElementById("dateTo").value = "";
       document.getElementById("regions").selectedIndex = 0;
+      document.getElementById("maxResults").value = "100";
       showStatus("Form cleared", 2000);
     }
+
+    /***************************************************************
+     * INIT
+     ***************************************************************/
+    document.addEventListener("DOMContentLoaded", () => {
+      const addBtn = document.getElementById("addKeyword");
+      const remBtn = document.getElementById("removeKeyword");
+      const submitBtn = document.getElementById("submitBtn");
+      const clearBtn = document.getElementById("clearBtn");
+
+      addBtn.addEventListener("click", () => {
+        if (state.keywords.length >= 5) return alert("Maximum 5 keywords allowed.");
+        state.keywords.push({ value: "", operatorAfter: "AND" });
+        renderKeywords();
+      });
+
+      remBtn.addEventListener("click", () => {
+        if (state.keywords.length <= 1) return;
+        state.keywords.pop();
+        renderKeywords();
+      });
+
+      submitBtn.addEventListener("click", submitSearch);
+      clearBtn.addEventListener("click", clearForm);
+
+      renderKeywords();
+      renderDbList();
+    });
   </script>
 </body>
 
