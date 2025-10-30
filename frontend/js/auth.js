@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3000/api/auth';
+const API_BASE_URL = 'https://project-lr-html.onrender.com/api/auth';
 
 //--- signup request -----
 
