@@ -2,7 +2,7 @@ import express from "express";
 import cors from 'cors'
 import connectDB from "./src/config/DataBase.js";
 import pubmedRoutes from './src/routes/pubmedRoutes.js';
-
+import authRoutes from './src/routes/authRoutes.js'
 const app = express();
 
 const allowedOrigins = ['http://127.0.0.1:5500']
@@ -20,6 +20,7 @@ app.get("/" , (req,res)=>{
 })
 
 app.use("/api/pubmed", pubmedRoutes);
+app.use("/api/auth" , authRoutes);
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
