@@ -5,7 +5,7 @@ import pubmedRoutes from './src/routes/pubmedRoutes.js';
 import authRoutes from './src/routes/authRoutes.js'
 const app = express();
 
-const allowedOrigins = ['http://127.0.0.1:5500']
+const allowedOrigins = ['https://project-lr-html.vercel.app']
 connectDB();
 app.use(cors({
     origin: allowedOrigins,
