@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://project-lr-html.onrender.com/api/auth';
+const API_BASE_URL = 'http://localhost:3000/api/auth';
 
 //--- signup request -----
 
@@ -73,7 +73,7 @@ if (loginForm) {
             if (response.ok) {
                 localStorage.setItem('token', data.data.token);
                 alert("Login Successful! Redirecting...");
-                window.location.href = 'main.html'; 
+                window.location.href = 'profile.html'; 
             } else {
                 alert(`Login Failed: ${data.msg || 'Unknown Error'}`);
             }
