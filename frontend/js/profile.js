@@ -39,14 +39,14 @@ async function fetchUserProfile() {
 
 // Navigation + Logout
 window.goHome = function() {
-    window.location.href = '/frontend/index.html';
+    window.location.href = '/index.html';
 }
 
 window.goDashboard = function() {
-    window.location.href = '/frontend/pages/main.html';
+    window.location.href = '/pages/main.html';
 }
 
 window.logout = function() {
     localStorage.removeItem('token');
-    window.location.href = '/frontend/pages/login.html';
+    window.location.href = '/pages/login.html';
 }
