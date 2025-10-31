@@ -1,12 +1,11 @@
-// src/controllers/searchController.js
 import { format } from 'date-fns';
-import User from '../models/User.js'; // Assuming your model path is correct
+import User from '../models/User.js'; 
 import { sendEmailWithSendGrid } from '../services/emailService.js';
 import { generateExcelBuffer } from '../services/excelService.js';
 import { searchPubMedUtil } from '../services/pubmedService.js';
 
 
-// ==================== BACKGROUND ASYNC PROCESSING ====================
+
 
 /**
  * Executes the search, generates the Excel, and sends the notification email.
