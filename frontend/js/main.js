@@ -1,7 +1,8 @@
 /***************************************************************
      * CONFIG: backend endpoint
      ***************************************************************/
-const BACKEND_URL = "http://localhost:3000/api/pubmed/search";
+import { API_BASE_URL } from "../config/constants.js";
+const BACKEND_URL = `${API_BASE_URL}/api/pubmed/search`;
 
 /***************************************************************
  * DATABASES and UI code (unchanged)...
