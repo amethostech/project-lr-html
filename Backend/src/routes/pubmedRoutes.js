@@ -1,8 +1,9 @@
 import express from 'express'
-import { searchPubMed } from '../controllers/pubMedController.js'
 
-const router= express.Router(); 
+import { searchAPIController } from '../controllers/pubMedController.js';
+const router = express.Router(); 
+import { authenticateJWT } from '../middlewares/authMiddleware.js';
+router.post('/search' , authenticateJWT , searchAPIController);
 
-router.post('/search' , searchPubMed);
 
-export default router;
+export default router; 
