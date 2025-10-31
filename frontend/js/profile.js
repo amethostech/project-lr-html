@@ -38,15 +38,15 @@ async function fetchUserProfile() {
 }
 
 // Navigation + Logout
-function goHome() {
+window.goHome = function() {
     window.location.href = '/frontend/index.html';
 }
 
-function goDashboard() {
+window.goDashboard = function() {
     window.location.href = '/frontend/pages/main.html';
 }
 
-function logout() {
+window.logout = function() {
     localStorage.removeItem('token');
     window.location.href = '/frontend/pages/login.html';
 }
