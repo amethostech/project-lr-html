@@ -1,5 +1,4 @@
-const API_BASE_URL = 'https://project-lr-html.onrender.com';
-
+import { API_BASE_URL } from "../config/constants";
 document.addEventListener('DOMContentLoaded', fetchUserProfile);
 
 async function fetchUserProfile() {

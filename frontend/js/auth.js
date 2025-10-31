@@ -1,8 +1,7 @@
-const API_BASE_URL = 'http://localhost:3000/api/auth';
 
 //--- signup request -----
 
-
+import { API_BASE_URL } from "../config/constants";
 const signupform = document.getElementById('signupForm');
 
 if (signupform) {
@@ -22,7 +21,7 @@ if (signupform) {
 
         try {
 
-            const response = await fetch(`${API_BASE_URL}/register`, {
+            const response = await fetch(`${API_BASE_URL}api/auth/register`, {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json'
@@ -60,7 +59,7 @@ if (loginForm) {
         const password = document.getElementById('password').value;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/login`, {
+            const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
