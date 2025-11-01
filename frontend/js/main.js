@@ -1,13 +1,4 @@
-/***************************************************************
-     * CONFIG: backend endpoint
-     ***************************************************************/
 import { API_BASE_URL } from "../config/constants.js";
-const BACKEND_URL = `${API_BASE_URL}/api/pubmed/search`;
-
-/***************************************************************
- * DATABASES and UI code (unchanged)...
- * ...existing code...
- ***************************************************************/
 const DATABASES = [
     {
         id: "ncbi_gene",
@@ -49,6 +40,16 @@ const DATABASES = [
             { key: "impact_filter", label: "Min Journal Impact Factor (optional)", type: "number" }
         ]
     },
+    { 
+        id: "google_scholar",
+        label: "Google Scholar (via SerpApi)",
+        group: "Publications",
+        fields: [
+            { key: "as_ylo", label: "Year From (as_ylo)", type: "number" }, 
+            { key: "as_yhi", label: "Year To (as_yhi)", type: "number" },   
+            { key: "as_sdt", label: "Search Type/Filter (as_sdt)", type: "select", opts: ["0 (Exclude Patents)", "7 (Include Patents)", "4 (Case Law)"] }
+        ]
+    },
     {
         id: "news",
         label: "News / Press Releases",
@@ -80,8 +81,8 @@ const DATABASES = [
  * STATE
  ***************************************************************/
 const state = {
-    keywords: [], // array of {value, operatorAfter} length <=5
-    dbParams: {}, // dbId -> params object
+    keywords: [], 
+    dbParams: {}, 
     selectedDbs: new Set()
 };
 
@@ -123,7 +124,6 @@ function createKeywordInput(index, value = "", operator = "AND") {
 function renderKeywords() {
     const cont = document.getElementById("keywordsContainer");
     cont.innerHTML = "";
-    // ensure there's at least 1 input
     if (state.keywords.length === 0) {
         state.keywords.push({ value: "", operatorAfter: "AND" });
     }
@@ -133,7 +133,6 @@ function renderKeywords() {
 }
 
 function ensureStateKeywords() {
-    // trim array to max 5 and remove trailing empties optionally
     state.keywords = state.keywords.slice(0, 5);
     while (state.keywords.length < 1) state.keywords.push({ value: "", operatorAfter: "AND" });
 }
@@ -159,11 +158,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /***************************************************************
- * Render DB list with checkboxes and hookup modal open
+ * Render DB list with checkboxes and hookup modal open (UPDATED)
  ***************************************************************/
 function renderDbList() {
     const root = document.getElementById("dbList");
     root.innerHTML = "";
+    
+    const allCheckboxes = [];
+
     DATABASES.forEach(db => {
         const item = document.createElement("label");
         item.className = "db-item";
@@ -171,15 +173,27 @@ function renderDbList() {
         cb.type = "checkbox";
         cb.style.transform = "scale(1.1)";
         cb.dataset.dbid = db.id;
+        
+        allCheckboxes.push(cb); 
+
         cb.addEventListener("change", (e) => {
             const id = e.target.dataset.dbid;
+            
             if (e.target.checked) {
-                state.selectedDbs.add(id);
+                // --- ENFORCE SINGLE SELECTION ---
+                state.selectedDbs.clear(); // Clear all selections in state
+                allCheckboxes.forEach(otherCb => {
+                    if (otherCb !== cb) {
+                        otherCb.checked = false; // Uncheck other UIs
+                    }
+                });
+                state.selectedDbs.add(id); // Add the newly selected one
+
                 // open modal to configure
                 openDbModal(db);
             } else {
                 state.selectedDbs.delete(id);
-                // clear stored params for that db
+                // clear stored params for that db (optional, but clean)
                 delete state.dbParams[id];
             }
         });
@@ -193,11 +207,14 @@ function renderDbList() {
         cfgBut.className = "btn-ghost";
         cfgBut.textContent = "Edit";
         cfgBut.addEventListener("click", (e) => {
-            // if not checked, check it
+            // If not checked, check it (and uncheck others)
             if (!state.selectedDbs.has(db.id)) {
-                cb.checked = true; state.selectedDbs.add(db.id);
+                 // Trigger the change handler manually to enforce single selection logic
+                 cb.checked = true;
+                 cb.dispatchEvent(new Event('change'));
+            } else {
+                openDbModal(db);
             }
-            openDbModal(db);
         });
 
         item.appendChild(cb);
@@ -264,7 +281,8 @@ function openDbModal(dbDef) {
         // If user cancels and db wasn't previously saved, uncheck
         if (!state.dbParams[dbDef.id]) {
             // uncheck checkbox in db list
-            document.querySelector(`input[data-dbid="${dbDef.id}"]`).checked = true; // keep checked so they can edit later
+            document.querySelector(`input[data-dbid="${dbDef.id}"]`).checked = false; 
+            state.selectedDbs.delete(dbDef.id);
         }
         root.style.display = "none";
         root.innerHTML = "";
@@ -286,20 +304,33 @@ function openDbModal(dbDef) {
 }
 
 /***************************************************************
- * Submit: Collect all fields and POST to backend API
+ * Submit: Collect all fields and POST to backend API 
  ***************************************************************/
 async function submitSearch() {
-    if (!BACKEND_URL) {
-        return alert("Please set BACKEND_URL at top of the file before submitting.");
+    const selectedDbs = Array.from(state.selectedDbs);
+    if (selectedDbs.length !== 1) return alert("Please select exactly one database to search.");
+
+    const database = selectedDbs[0]; // The single selected DB ID
+    let endpointPath;
+    
+    if (database === 'pubmed') {
+        endpointPath = '/api/pubmed';
+    } else if (database === 'google_scholar') {
+        endpointPath = '/api/google/googlescholar'; 
+    } else {
+        return alert(`Search for database ${database} is not supported.`);
     }
 
+    const DYNAMIC_BACKEND_URL = `${API_BASE_URL}${endpointPath}`;
+
+    // --- Core Payload Construction ---
     const keywords = state.keywords
         .map(k => ({ value: k.value || "", operatorAfter: k.operatorAfter || "AND" }))
         .filter(k => k.value && k.value.trim().length > 0);
 
     if (keywords.length === 0) return alert("Please enter at least one keyword.");
 
-    // Read dateFrom/dateTo and maxResults (IDs now match backend)
+    // Read dateFrom/dateTo and maxResults
     const dateFrom = (document.getElementById("dateFrom") || {}).value || null;
     const dateTo = (document.getElementById("dateTo") || {}).value || null;
     const maxResultsInput = (document.getElementById("maxResults") || {}).value || "100";
@@ -310,17 +341,13 @@ async function submitSearch() {
     const selectedRegions = Array.from(regionsSelect.selectedOptions).map(o => o.value);
 
     // selected DBs and their params
-    const selectedDbs = Array.from(state.selectedDbs);
     const dbParams = {};
     selectedDbs.forEach(id => { dbParams[id] = state.dbParams[id] || {}; });
-
-
-
+    
     const query = keywords.map((k, i) => {
         const text = k.value.includes(' ') ? `"${k.value}"` : k.value;
         return i < keywords.length - 1 ? `${text} ${k.operatorAfter}` : text;
     }).join(' ');
-    const database = selectedDbs.length > 0 ? selectedDbs[0] : null;
 
     const payload = {
         timestamp: new Date().toISOString(),
@@ -336,9 +363,11 @@ async function submitSearch() {
         source: "hostinger_frontend_v1"
     };
 
+    // --- Fetch Logic ---
+
     try {
         showStatus("Submitting…");
-        // gather token from common storage locations
+        
         const token =
             localStorage.getItem('token') ||
             sessionStorage.getItem('token') ||
@@ -351,18 +380,17 @@ async function submitSearch() {
         if (token) {
             headers.Authorization = `Bearer ${token}`;
         } else {
-            // optional: inform user if no token found
             console.warn('No auth token found in local/session storage or cookies.');
         }
 
-        const resp = await fetch(BACKEND_URL, {
+        const resp = await fetch(DYNAMIC_BACKEND_URL, {
             method: "POST",
             mode: "cors",
             headers,
             body: JSON.stringify(payload)
         });
+        
         const text = await resp.text().catch(() => "");
-        // try to parse JSON response (server returns JSON)
         let data = {};
         try { data = text ? JSON.parse(text) : {}; } catch (e) {
             console.warn("Failed to parse response JSON:", e, "raw:", text);
@@ -373,13 +401,11 @@ async function submitSearch() {
         }
 
         console.log("✅ Server response:", data);
-        // if PubMed response included count/ids provide visible feedback
+        
         if (data && typeof data.count !== "undefined") {
-            showStatus(`Found ${data.count} records. Received ${Array.isArray(data.ids) ? data.ids.length : 0} ids.`, 7000);
-            // log first ids
-            console.log("First PMIDs:", (data.ids || []).slice(0, 20));
+            showStatus(`Found ${data.count} records from ${database}.`, 7000);
         } else {
-            showStatus("Submitted successfully ✅ (no PubMed results in response)", 5000);
+            showStatus("Submitted successfully ✅", 5000);
         }
     } catch (err) {
         console.error(err);
@@ -395,12 +421,10 @@ function showStatus(msg, ttl = 2000) {
 }
 
 function clearForm() {
-    // reset state and UI
     state.keywords = [{ value: "", operatorAfter: "AND" }];
     state.dbParams = {};
     state.selectedDbs = new Set();
     renderKeywords();
-    // uncheck all DB checkboxes
     document.querySelectorAll("#dbList input[type=checkbox]").forEach(cb => cb.checked = false);
     document.getElementById("dateFrom").value = "";
     document.getElementById("dateTo").value = "";

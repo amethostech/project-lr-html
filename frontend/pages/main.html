@@ -14,9 +14,7 @@
     <p class="lead">Enter up to 5 keywords (combine with AND / OR), choose year/region filters and select databases.
       Each selected DB can be configured separately. On submit, data is sent to the backend.</p>
 
-    <!-- MAIN FORM -->
     <form id="searchForm" class="card" onsubmit="return false;">
-      <!-- Keywords -->
       <div style="margin-bottom:12px">
         <label>Keywords (up to 5) <span class="small">— add/remove as needed</span></label>
         <div id="keywordsContainer" class="keywords"></div>
@@ -26,7 +24,6 @@
         </div>
       </div>
 
-      <!-- Filters (updated IDs to match backend expectation) -->
       <div style="margin-bottom:12px">
         <label>Year Range</label>
         <div class="row" style="gap:8px">
@@ -61,17 +58,14 @@
         <div class="small" style="margin-top:6px">Hold Ctrl / Cmd to multi-select (or tap to choose multiple).</div>
       </div>
 
-      <!-- Databases -->
       <div style="margin-bottom:12px">
         <label>Select Databases to configure</label>
         <div class="db-list" id="dbList">
-          <!-- Database items populated by JS -->
-        </div>
+          </div>
         <div class="small" style="margin-top:6px">You can select multiple databases. Each selection will open a
           configuration popup. Actual search will be run one DB at a time.</div>
       </div>
 
-      <!-- Submission -->
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
         <button type="button" id="submitBtn">Submit Search</button>
         <button type="button" id="clearBtn" class="btn-ghost">Clear</button>
@@ -84,9 +78,8 @@
     </footer>
   </div>
 
-  <!-- MODAL CONTAINER -->
   <div id="modalRoot" style="display:none"></div>
-  <script  type="module" src="/js/main.js"></script>
+  <script type="module"  src="/js/main.js"></script>
 </body>
 
 </html>
