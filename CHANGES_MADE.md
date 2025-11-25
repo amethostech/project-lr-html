@@ -44,7 +44,7 @@ const allowedOrigins = ['http://127.0.0.1:5500', 'http://localhost:5500' ,'https
 // ADDED: Improved MongoDB connection handling
 if (process.env.MONGO_URI) {
     connectDB().catch(err => {
-        console.warn('⚠️  MongoDB connection failed, but server will continue running.');
+        console.warn('  MongoDB connection failed, but server will continue running.');
         console.warn('   USPTO searches will work without MongoDB.');
         console.warn('   Error:', err.message);
     });
