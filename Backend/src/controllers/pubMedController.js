@@ -1,8 +1,9 @@
 import { format } from 'date-fns';
 import User from '../models/User.js'; 
 import { sendEmailWithSendGrid } from '../services/emailService.js';
-import { generateExcelBuffer } from '../services/excelService.js';
+import { generateExcelBuffer, appendToConsolidatedExcel } from '../services/excelService.js';
 import { searchPubMedUtil } from '../services/pubmedService.js';
+import path from 'path';
 
 
 
@@ -81,6 +82,16 @@ async function processSearchAsync(recipientEmail, from, to, query, database) {
         // Use imported excel service
         const excelBuffer = await generateExcelBuffer(results); 
         const excelSizeMB = (excelBuffer.length / (1024 * 1024)).toFixed(2);
+        
+        // Save to consolidated Excel file
+        try {
+            const consolidatedFile = path.resolve('consolidated_search_results.xlsx');
+            await appendToConsolidatedExcel(consolidatedFile, results, 'PubMed');
+            console.log(`✅ Consolidated Excel updated: PubMed (${results.length} records)`);
+        } catch (excelError) {
+            console.error(`⚠️ Warning: Failed to save to consolidated Excel: ${excelError.message}`);
+            // Continue even if consolidated Excel save fails
+        }
         
         // Fetch user name for file naming
         let username = 'UnknownUser';

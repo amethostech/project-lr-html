@@ -15,6 +15,8 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Use default keyGenerator which handles IPv6 properly
+  // The trust proxy setting in app.js will handle IP detection correctly
 });
 
 router.post('/register', authLimiter,registerValidation ,  register);

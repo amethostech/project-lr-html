@@ -21,7 +21,7 @@ if (signupform) {
 
         try {
 
-            const response = await fetch(`${API_BASE_URL}api/auth/register`, {
+            const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json'
@@ -36,7 +36,7 @@ if (signupform) {
                 alert("Sign Up Successful! Please log in.");
                 window.location.href = 'login.html'
             } else {
-                alert(`Sign Up Failed: ${data.msg || 'Unknown Error'}`);
+                alert(`Sign Up Failed: ${data.message || data.msg || 'Unknown Error'}`);
             }
 
         } catch (error) {
@@ -74,7 +74,7 @@ if (loginForm) {
                 alert("Login Successful! Redirecting...");
                 window.location.href = 'profile.html'; 
             } else {
-                alert(`Login Failed: ${data.msg || 'Unknown Error'}`);
+                alert(`Login Failed: ${data.message || data.msg || 'Unknown Error'}`);
             }
         } catch (error) {
             console.error('Network Error:', error);

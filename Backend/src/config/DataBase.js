@@ -62,7 +62,9 @@ const connectDB = async () => {
       console.error('SSL/TLS error detected. Check MongoDB Atlas network access and try regenerating your connection string.');
     }
     
-    process.exit(1);
+    // Don't exit process - let the server continue without MongoDB
+    // This allows USPTO and other features to work without database
+    throw error; // Re-throw so caller can handle it
   }
 };
 

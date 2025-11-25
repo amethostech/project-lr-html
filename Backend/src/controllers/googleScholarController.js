@@ -1,8 +1,9 @@
 import { GoogleSearch } from 'google-search-results-nodejs';
 import User from '../models/User.js';
 import { sendEmailWithSendGrid } from '../services/emailService.js';
-import { generateExcelBuffer } from '../services/excelService.js';
+import { generateExcelBuffer, appendToConsolidatedExcel } from '../services/excelService.js';
 import { SERP_API_KEY } from '../utils/constants.js';
+import path from 'path';
 
 // Helper: perform the Google Scholar search and return formatted results
 async function performGoogleScholarSearch(query, maxResults = 10, dbParams = {}) {
@@ -94,6 +95,16 @@ async function processScholarSearchAsync(recipientEmail, query, maxResults, dbPa
         console.log(`[Scholar] Generating Excel file...`);
         const excelBuffer = await generateExcelBuffer(results);
         const excelSizeMB = (excelBuffer.length / (1024 * 1024)).toFixed(2);
+
+        // Save to consolidated Excel file
+        try {
+            const consolidatedFile = path.resolve('consolidated_search_results.xlsx');
+            await appendToConsolidatedExcel(consolidatedFile, results, 'Google Scholar');
+            console.log(`✅ Consolidated Excel updated: Google Scholar (${results.length} records)`);
+        } catch (excelError) {
+            console.error(`⚠️ Warning: Failed to save to consolidated Excel: ${excelError.message}`);
+            // Continue even if consolidated Excel save fails
+        }
 
         // Fetch username for filename
         let username = 'User';

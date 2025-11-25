@@ -308,15 +308,58 @@ function openDbModal(dbDef) {
  ***************************************************************/
 async function submitSearch() {
     const selectedDbs = Array.from(state.selectedDbs);
-    if (selectedDbs.length !== 1) return alert("Please select exactly one database to search.");
+    if (selectedDbs.length === 0) return alert("Please select at least one database to search.");
 
-    const database = selectedDbs[0]; // The single selected DB ID
+    // Check if user is logged in
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token') || 
+        (function getCookie(name) {
+            const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return m ? decodeURIComponent(m.pop()) : null;
+        })('token');
+    
+    if (!token) {
+        alert("You must be logged in to perform searches. Redirecting to login page...");
+        window.location.href = '/pages/login.html';
+        return;
+    }
+
+    // If multiple databases selected, search each one sequentially
+    if (selectedDbs.length > 1) {
+        showStatus(`Searching ${selectedDbs.length} databases...`, 0);
+        
+        for (let i = 0; i < selectedDbs.length; i++) {
+            const database = selectedDbs[i];
+            const dbName = DATABASES.find(db => db.id === database)?.label || database;
+            showStatus(`Searching ${i + 1}/${selectedDbs.length}: ${dbName}...`, 0);
+            
+            try {
+                await performSingleDatabaseSearch(database);
+            } catch (error) {
+                console.error(`Error searching ${database}:`, error);
+                showStatus(`Error searching ${dbName}`, 3000);
+            }
+        }
+        
+        showStatus(`✅ Completed searches for ${selectedDbs.length} databases. All results saved to consolidated Excel!`, 7000);
+        return;
+    }
+
+    // Single database search
+    const database = selectedDbs[0];
+    await performSingleDatabaseSearch(database);
+}
+
+async function performSingleDatabaseSearch(database) {
     let endpointPath;
+    let isUspto = false;
     
     if (database === 'pubmed') {
-        endpointPath = '/api/pubmed';
+        endpointPath = '/api/pubmed/search';
     } else if (database === 'google_scholar') {
-        endpointPath = '/api/google/googlescholar'; 
+        endpointPath = '/api/google/googlescholar';
+    } else if (database === 'uspto' || database === 'patents') {
+        endpointPath = '/api/uspto/search';
+        isUspto = true;
     } else {
         return alert(`Search for database ${database} is not supported.`);
     }
@@ -340,34 +383,46 @@ async function submitSearch() {
     const regionsSelect = document.getElementById("regions");
     const selectedRegions = Array.from(regionsSelect.selectedOptions).map(o => o.value);
 
-    // selected DBs and their params
+    // selected DBs and their params (for this specific database)
     const dbParams = {};
-    selectedDbs.forEach(id => { dbParams[id] = state.dbParams[id] || {}; });
+    dbParams[database] = state.dbParams[database] || {};
     
     const query = keywords.map((k, i) => {
         const text = k.value.includes(' ') ? `"${k.value}"` : k.value;
         return i < keywords.length - 1 ? `${text} ${k.operatorAfter}` : text;
     }).join(' ');
 
-    const payload = {
-        timestamp: new Date().toISOString(),
-        query,               
-        database,          
-        keywords,            
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
-        maxResults,
-        regions: selectedRegions,
-        selectedDbs,
-        dbParams,
-        source: "hostinger_frontend_v1"
-    };
+    // Build payload - different format for USPTO
+    let payload;
+    if (isUspto) {
+        // USPTO expects: { keywords: string[], operator: "AND"|"OR", limit: number }
+        const keywordValues = keywords.map(k => k.value);
+        const operator = keywords.length > 1 ? keywords[0].operatorAfter || 'AND' : 'AND';
+        payload = {
+            keywords: keywordValues,
+            operator: operator.toUpperCase(),
+            limit: maxResults
+        };
+    } else {
+        // Standard payload for other databases
+        payload = {
+            timestamp: new Date().toISOString(),
+            query,               
+            database,          
+            keywords,            
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+            maxResults,
+            regions: selectedRegions,
+            selectedDbs: [database],
+            dbParams,
+            source: "hostinger_frontend_v1"
+        };
+    }
 
     // --- Fetch Logic ---
 
     try {
-        showStatus("Submitting…");
-        
         const token =
             localStorage.getItem('token') ||
             sessionStorage.getItem('token') ||
@@ -392,25 +447,40 @@ async function submitSearch() {
         
         const text = await resp.text().catch(() => "");
         let data = {};
-        try { data = text ? JSON.parse(text) : {}; } catch (e) {
-            console.warn("Failed to parse response JSON:", e, "raw:", text);
+        try { 
+            data = text ? JSON.parse(text) : {}; 
+        } catch (e) {
+            console.error("Failed to parse response JSON:", e, "raw response:", text);
+            throw new Error(`Server returned invalid response. Status: ${resp.status}`);
         }
 
         if (!resp.ok) {
-            throw new Error(data && data.error ? data.error : `Status ${resp.status}`);
+            const errorMsg = data.error || data.message || `HTTP ${resp.status}: ${resp.statusText}`;
+            console.error("Server error:", errorMsg, "Full response:", data);
+            throw new Error(errorMsg);
         }
 
         console.log("✅ Server response:", data);
         
-        if (data && typeof data.count !== "undefined") {
-            showStatus(`Found ${data.count} records from ${database}.`, 7000);
+        // Handle different response formats
+        if (isUspto) {
+            // USPTO returns: { success, results, total, shown, query, message }
+            if (data && data.success) {
+                showStatus(`Found ${data.total || 0} total results. Showing ${data.shown || 0} results. Saved to consolidated Excel!`, 7000);
+            } else {
+                showStatus(data.message || "Submitted successfully ✅", 5000);
+            }
+        } else if (data && typeof data.count !== "undefined") {
+            showStatus(`Found ${data.count} records from ${database}. Saved to consolidated Excel!`, 7000);
         } else {
-            showStatus("Submitted successfully ✅", 5000);
+            showStatus("Submitted successfully ✅ - Results saved to consolidated Excel!", 5000);
         }
     } catch (err) {
-        console.error(err);
-        showStatus("Error submitting — check console.", 7000);
-        alert("Submission failed. Open browser console for details.");
+        console.error("❌ Search error:", err);
+        const errorMessage = err.message || "Unknown error occurred";
+        showStatus(`Error: ${errorMessage}`, 7000);
+        alert(`Submission failed: ${errorMessage}\n\nCheck browser console (F12) for more details.`);
+        throw err; // Re-throw for multiple database handling
     }
 }
 
