@@ -178,7 +178,7 @@ def generate_excel():
 
     output.seek(0)
 
-    return send_file(
+    return   send_file(
         output,
         as_attachment=True,
         download_name="results.xlsx",

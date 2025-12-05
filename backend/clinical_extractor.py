@@ -39,7 +39,7 @@ class ClinicalTrialsExtractor:
             time.sleep(self.delay)
         return all_studies
 
-    def parse_studies(self, studies):
+    def  parse_studies(self, studies):
         rows = []
         for s in studies:
             p = s.get("protocolSection", {}) or {}
