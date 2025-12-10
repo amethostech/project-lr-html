@@ -40,13 +40,13 @@ const DATABASES = [
             { key: "impact_filter", label: "Min Journal Impact Factor (optional)", type: "number" }
         ]
     },
-    { 
+    {
         id: "google_scholar",
         label: "Google Scholar (via SerpApi)",
         group: "Publications",
         fields: [
-            { key: "as_ylo", label: "Year From (as_ylo)", type: "number" }, 
-            { key: "as_yhi", label: "Year To (as_yhi)", type: "number" },   
+            { key: "as_ylo", label: "Year From (as_ylo)", type: "number" },
+            { key: "as_yhi", label: "Year To (as_yhi)", type: "number" },
             { key: "as_sdt", label: "Search Type/Filter (as_sdt)", type: "select", opts: ["0 (Exclude Patents)", "7 (Include Patents)", "4 (Case Law)"] }
         ]
     },
@@ -81,8 +81,8 @@ const DATABASES = [
  * STATE
  ***************************************************************/
 const state = {
-    keywords: [], 
-    dbParams: {}, 
+    keywords: [],
+    dbParams: {},
     selectedDbs: new Set()
 };
 
@@ -163,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function renderDbList() {
     const root = document.getElementById("dbList");
     root.innerHTML = "";
-    
+
     const allCheckboxes = [];
 
     DATABASES.forEach(db => {
@@ -173,12 +173,12 @@ function renderDbList() {
         cb.type = "checkbox";
         cb.style.transform = "scale(1.1)";
         cb.dataset.dbid = db.id;
-        
-        allCheckboxes.push(cb); 
+
+        allCheckboxes.push(cb);
 
         cb.addEventListener("change", (e) => {
             const id = e.target.dataset.dbid;
-            
+
             if (e.target.checked) {
                 // --- ENFORCE SINGLE SELECTION ---
                 state.selectedDbs.clear(); // Clear all selections in state
@@ -209,9 +209,9 @@ function renderDbList() {
         cfgBut.addEventListener("click", (e) => {
             // If not checked, check it (and uncheck others)
             if (!state.selectedDbs.has(db.id)) {
-                 // Trigger the change handler manually to enforce single selection logic
-                 cb.checked = true;
-                 cb.dispatchEvent(new Event('change'));
+                // Trigger the change handler manually to enforce single selection logic
+                cb.checked = true;
+                cb.dispatchEvent(new Event('change'));
             } else {
                 openDbModal(db);
             }
@@ -281,7 +281,7 @@ function openDbModal(dbDef) {
         // If user cancels and db wasn't previously saved, uncheck
         if (!state.dbParams[dbDef.id]) {
             // uncheck checkbox in db list
-            document.querySelector(`input[data-dbid="${dbDef.id}"]`).checked = false; 
+            document.querySelector(`input[data-dbid="${dbDef.id}"]`).checked = false;
             state.selectedDbs.delete(dbDef.id);
         }
         root.style.display = "none";
@@ -311,12 +311,12 @@ async function submitSearch() {
     if (selectedDbs.length === 0) return alert("Please select at least one database to search.");
 
     // Check if user is logged in
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token') || 
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token') ||
         (function getCookie(name) {
             const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
             return m ? decodeURIComponent(m.pop()) : null;
         })('token');
-    
+
     if (!token) {
         alert("You must be logged in to perform searches. Redirecting to login page...");
         window.location.href = '/pages/login.html';
@@ -326,12 +326,12 @@ async function submitSearch() {
     // If multiple databases selected, search each one sequentially
     if (selectedDbs.length > 1) {
         showStatus(`Searching ${selectedDbs.length} databases...`, 0);
-        
+
         for (let i = 0; i < selectedDbs.length; i++) {
             const database = selectedDbs[i];
             const dbName = DATABASES.find(db => db.id === database)?.label || database;
             showStatus(`Searching ${i + 1}/${selectedDbs.length}: ${dbName}...`, 0);
-            
+
             try {
                 await performSingleDatabaseSearch(database);
             } catch (error) {
@@ -339,7 +339,7 @@ async function submitSearch() {
                 showStatus(`Error searching ${dbName}`, 3000);
             }
         }
-        
+
         showStatus(`✅ Completed searches for ${selectedDbs.length} databases. All results saved to consolidated Excel!`, 7000);
         return;
     }
@@ -352,7 +352,7 @@ async function submitSearch() {
 async function performSingleDatabaseSearch(database) {
     let endpointPath;
     let isUspto = false;
-    
+
     if (database === 'pubmed') {
         endpointPath = '/api/pubmed/search';
     } else if (database === 'google_scholar') {
@@ -360,6 +360,8 @@ async function performSingleDatabaseSearch(database) {
     } else if (database === 'uspto' || database === 'patents') {
         endpointPath = '/api/uspto/search';
         isUspto = true;
+    } else if (database === 'clinicaltrials') {
+        endpointPath = '/api/search';
     } else {
         return alert(`Search for database ${database} is not supported.`);
     }
@@ -386,7 +388,7 @@ async function performSingleDatabaseSearch(database) {
     // selected DBs and their params (for this specific database)
     const dbParams = {};
     dbParams[database] = state.dbParams[database] || {};
-    
+
     const query = keywords.map((k, i) => {
         const text = k.value.includes(' ') ? `"${k.value}"` : k.value;
         return i < keywords.length - 1 ? `${text} ${k.operatorAfter}` : text;
@@ -407,9 +409,9 @@ async function performSingleDatabaseSearch(database) {
         // Standard payload for other databases
         payload = {
             timestamp: new Date().toISOString(),
-            query,               
-            database,          
-            keywords,            
+            query,
+            database,
+            keywords,
             dateFrom: dateFrom || undefined,
             dateTo: dateTo || undefined,
             maxResults,
@@ -444,11 +446,11 @@ async function performSingleDatabaseSearch(database) {
             headers,
             body: JSON.stringify(payload)
         });
-        
+
         const text = await resp.text().catch(() => "");
         let data = {};
-        try { 
-            data = text ? JSON.parse(text) : {}; 
+        try {
+            data = text ? JSON.parse(text) : {};
         } catch (e) {
             console.error("Failed to parse response JSON:", e, "raw response:", text);
             throw new Error(`Server returned invalid response. Status: ${resp.status}`);
@@ -461,7 +463,7 @@ async function performSingleDatabaseSearch(database) {
         }
 
         console.log("✅ Server response:", data);
-        
+
         // Handle different response formats
         if (isUspto) {
             // USPTO returns: { success, results, total, shown, query, message }
