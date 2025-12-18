@@ -158,7 +158,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /***************************************************************
- * Render DB list with checkboxes and hookup modal open (UPDATED)
+ * Render DB list with checkboxes and hookup modal open (only
+ * for databases that have backend controllers/endpoints wired).
  ***************************************************************/
 function renderDbList() {
     const root = document.getElementById("dbList");
@@ -166,9 +167,13 @@ function renderDbList() {
 
     const allCheckboxes = [];
 
-    DATABASES.forEach(db => {
+    // Only show databases that are actually supported by the backend.
+    const SUPPORTED_DB_IDS = new Set(["pubmed", "google_scholar", "clinicaltrials", "patents"]);
+
+    DATABASES.filter(db => SUPPORTED_DB_IDS.has(db.id)).forEach(db => {
         const item = document.createElement("label");
         item.className = "db-item";
+
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.style.transform = "scale(1.1)";
@@ -180,20 +185,11 @@ function renderDbList() {
             const id = e.target.dataset.dbid;
 
             if (e.target.checked) {
-                // --- ENFORCE SINGLE SELECTION ---
-                state.selectedDbs.clear(); // Clear all selections in state
-                allCheckboxes.forEach(otherCb => {
-                    if (otherCb !== cb) {
-                        otherCb.checked = false; // Uncheck other UIs
-                    }
-                });
-                state.selectedDbs.add(id); // Add the newly selected one
-
-                // open modal to configure
+                // Allow multiple selections: just add this DB and open its config.
+                state.selectedDbs.add(id);
                 openDbModal(db);
             } else {
                 state.selectedDbs.delete(id);
-                // clear stored params for that db (optional, but clean)
                 delete state.dbParams[id];
             }
         });
@@ -206,10 +202,9 @@ function renderDbList() {
         cfgBut.type = "button";
         cfgBut.className = "btn-ghost";
         cfgBut.textContent = "Edit";
-        cfgBut.addEventListener("click", (e) => {
-            // If not checked, check it (and uncheck others)
+        cfgBut.addEventListener("click", () => {
+            // If not yet selected, select and open its configuration.
             if (!state.selectedDbs.has(db.id)) {
-                // Trigger the change handler manually to enforce single selection logic
                 cb.checked = true;
                 cb.dispatchEvent(new Event('change'));
             } else {
@@ -308,9 +303,9 @@ function openDbModal(dbDef) {
  ***************************************************************/
 async function submitSearch() {
     const selectedDbs = Array.from(state.selectedDbs);
-    if (selectedDbs.length === 0) return alert("Please select at least one database to search.");
+    const newsSelected = document.getElementById("newsArticles")?.checked || false;
 
-    // Check if user is logged in
+    // Require authentication for any outbound search
     const token = localStorage.getItem('token') || sessionStorage.getItem('token') ||
         (function getCookie(name) {
             const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -320,6 +315,26 @@ async function submitSearch() {
     if (!token) {
         alert("You must be logged in to perform searches. Redirecting to login page...");
         window.location.href = '/pages/login.html';
+        return;
+    }
+
+    if (!newsSelected && selectedDbs.length === 0) {
+        alert("Please select at least one database or enable the News Articles option.");
+        return;
+    }
+
+    // Run the curated news search first if requested
+    if (newsSelected) {
+        try {
+            await performNewsArticlesSearch();
+        } catch (error) {
+            console.error("Error during news articles search:", error);
+            showStatus(`Error searching news articles: ${error.message || error}`, 5000);
+        }
+    }
+
+    // If no databases were selected, we're done
+    if (selectedDbs.length === 0) {
         return;
     }
 
@@ -347,6 +362,77 @@ async function submitSearch() {
     // Single database search
     const database = selectedDbs[0];
     await performSingleDatabaseSearch(database);
+}
+
+/**
+ * Trigger a news‑only search against the curated CSV store.
+ * This sends results to the authenticated user's e‑mail via the backend.
+ */
+async function performNewsArticlesSearch() {
+    const endpointPath = '/api/news/search';
+    const DYNAMIC_BACKEND_URL = `${API_BASE_URL}${endpointPath}`;
+
+    const keywords = state.keywords
+        .map(k => (k && k.value ? String(k.value).trim() : ''))
+        .filter(v => v.length > 0);
+
+    if (keywords.length === 0) {
+        alert("Please enter at least one keyword to search news articles.");
+        return;
+    }
+
+    const maxResultsInput = (document.getElementById("maxResults") || {}).value || "100";
+    const maxResults = Math.min(Math.max(parseInt(maxResultsInput || "100", 10) || 1, 1), 10000);
+
+    const payload = {
+        keywords,
+        maxResults
+    };
+
+    try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token') ||
+            (function getCookie(name) {
+                const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+                return m ? decodeURIComponent(m.pop()) : null;
+            })('token');
+
+        const headers = { "Content-Type": "application/json" };
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
+        showStatus("Submitting news articles search...", 0);
+
+        const resp = await fetch(DYNAMIC_BACKEND_URL, {
+            method: "POST",
+            mode: "cors",
+            headers,
+            body: JSON.stringify(payload)
+        });
+
+        const text = await resp.text().catch(() => "");
+        let data = {};
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            console.error("Failed to parse news search response JSON:", e, "raw response:", text);
+            throw new Error(`Server returned invalid response. Status: ${resp.status}`);
+        }
+
+        if (!resp.ok) {
+            const errorMsg = data.error || data.message || `HTTP ${resp.status}: ${resp.statusText}`;
+            throw new Error(errorMsg);
+        }
+
+        const msg = data.message || `News articles search submitted. Results will be emailed to ${data.recipientEmail || 'your email'} shortly.`;
+        showStatus(`✅ ${msg}`, 7000);
+    } catch (err) {
+        console.error("❌ News articles search error:", err);
+        const message = err.message || "Unknown error occurred";
+        showStatus(`Error: ${message}`, 7000);
+        alert(`News articles search failed: ${message}\n\nCheck browser console (F12) for more details.`);
+        throw err;
+    }
 }
 
 async function performSingleDatabaseSearch(database) {
@@ -502,6 +588,10 @@ function clearForm() {
     document.getElementById("dateTo").value = "";
     document.getElementById("regions").selectedIndex = 0;
     document.getElementById("maxResults").value = "100";
+    const newsCheckbox = document.getElementById("newsArticles");
+    if (newsCheckbox) {
+        newsCheckbox.checked = false;
+    }
     showStatus("Form cleared", 2000);
 }
 

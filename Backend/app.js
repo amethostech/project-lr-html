@@ -8,10 +8,16 @@ import googleScholarRoutes from './src/routes/googleScholarRoutes.js'
 import usptoRoutes from './src/routes/usptoRoutes.js'
 import auditRoutes from './src/routes/auditRoutes.js'
 import searchRoutes from './src/routes/searchRoutes.js'
+import newsArticlesRoutes from './src/routes/newsArticlesRoutes.js'
 const app = express();
 
-const allowedOrigins = ['http://127.0.0.1:5500', 'http://localhost:5500' ,'https://project-lr-html.vercel.app/index.html','https://project-lr-html.vercel.app'];
-
+const allowedOrigins = [
+    'http://127.0.0.1:5500',
+    'http://localhost:5500',
+    'https://project-lr-html.vercel.app/index.html',
+    'https://project-lr-html.vercel.app',
+    'https://project-lr-frontend.onrender.com' // <-- placeholder Render frontend URL
+  ];
 // Connect to MongoDB (optional - only needed for auth/user features)
 // USPTO searches work without MongoDB
 if (process.env.MONGO_URI) {
@@ -46,7 +52,8 @@ app.use("/api", profileRoutes)
 app.use('/api/google', googleScholarRoutes)
 app.use('/api/uspto', usptoRoutes)
 app.use('/api/audit', auditRoutes)
-app.use('/api/search' , searchRoutes) ;
+app.use('/api/search' , searchRoutes) 
+app.use('/api/news', newsArticlesRoutes) ;
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({

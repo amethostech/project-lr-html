@@ -60,7 +60,18 @@
       border-radius: 6px;
       border: 1px solid #dbe7fb;
       background: white;
+  color: #0b1220;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #1f6feb;
+  box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.18);
+}
 
     button {
       background: var(--accent);

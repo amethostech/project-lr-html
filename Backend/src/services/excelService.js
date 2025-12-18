@@ -315,6 +315,131 @@ export async function appendToConsolidatedExcel(filename, results, source = 'Unk
         });
     }
 
-    // Save workbook
+    // Save workbook (raw consolidated data)
     await workbook.xlsx.writeFile(filePath);
+
+    // Overwrite with cleaned/structured view so there is a single user-facing file
+    try {
+        await writeCleanConsolidatedView(filePath);
+    } catch (cleanErr) {
+        console.warn('Warning: failed to update cleaned consolidated Excel:', cleanErr.message);
+    }
+}
+
+/**
+ * Build a user-friendly, structured version of the consolidated file.
+ * - Merges Title/Study Title/Headline into "Title / Study Title"
+ * - Merges Authors/Sponsor into "Authors / Sponsor"
+ * - Keeps common columns in a preferred order; appends any extra columns at the end
+ * - Trims whitespace and drops duplicate rows
+ */
+async function writeCleanConsolidatedView(sourceFile) {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(sourceFile);
+    let sheet = workbook.getWorksheet('Consolidated Results');
+    if (!sheet) {
+        // Fallback if previous run used the cleaned sheet name
+        sheet = workbook.getWorksheet('Cleaned Results');
+    }
+    if (!sheet) {
+        throw new Error('Consolidated Results sheet not found');
+    }
+
+    // Read header
+    const headers = sheet.getRow(1).values.filter(Boolean);
+    const rows = [];
+    sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const obj = {};
+        headers.forEach((h, idx) => {
+            obj[h] = row.getCell(idx + 1).value ?? '';
+        });
+        rows.push(obj);
+    });
+
+    const firstNonEmpty = (row, keys) => {
+        for (const k of keys) {
+            const v = row[k];
+            if (v !== undefined && v !== null && String(v).trim() !== '') {
+                return String(v).trim();
+            }
+        }
+        return '';
+    };
+
+    const baseCols = [
+        'Source Database',
+        'Search Date',
+        'Title / Study Title',
+        'Authors / Sponsor',
+        'Publication Number',
+        'Identifier',
+        'PublicationYear',
+        'Status',
+        'Abstract',
+        'Source',
+        'Search Term',
+    ];
+
+    // Build cleaned rows
+    const cleanedRows = rows.map(r => {
+        const merged = {
+            'Source Database': r['Source Database'] ?? '',
+            'Search Date': r['Search Date'] ?? '',
+            'Title / Study Title': firstNonEmpty(r, ['Title', 'Study Title', 'Headline']),
+            'Authors / Sponsor': firstNonEmpty(r, ['Authors', 'Sponsor']),
+            'Publication Number': r['Publication Number'] ?? '',
+            'Identifier': firstNonEmpty(r, ['Identifier', 'DOI_PMID', 'NCT ID', 'Publication Number']),
+            'PublicationYear': r['PublicationYear'] ?? '',
+            'Status': r['Status'] ?? '',
+            'Abstract': firstNonEmpty(r, ['Abstract', 'Extract']),
+            'Source': r['Source'] ?? '',
+            'Search Term': r['Search Term'] ?? '',
+        };
+        // Include any remaining fields not in baseCols
+        const extras = {};
+        Object.keys(r).forEach(k => {
+            if (k && !baseCols.includes(k) && !['Title', 'Study Title', 'Headline', 'Authors', 'Sponsor'].includes(k)) {
+                if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') {
+                    extras[k] = r[k];
+                }
+            }
+        });
+        return { ...merged, ...extras };
+    });
+
+    // Drop duplicate rows (stringified)
+    const uniq = [];
+    const seen = new Set();
+    for (const row of cleanedRows) {
+        const key = JSON.stringify(row);
+        if (!seen.has(key)) {
+            seen.add(key);
+            uniq.push(row);
+        }
+    }
+
+    // Determine final columns: base order then extras in alpha order
+    const extraCols = Array.from(
+        uniq.reduce((set, row) => {
+            Object.keys(row).forEach(k => {
+                if (!baseCols.includes(k)) set.add(k);
+            });
+            return set;
+        }, new Set())
+    ).sort();
+    const finalCols = [...baseCols, ...extraCols];
+
+    // Write cleaned workbook
+    const cleanWb = new ExcelJS.Workbook();
+    const cleanSheet = cleanWb.addWorksheet('Consolidated Results');
+    cleanSheet.columns = finalCols.map(key => ({
+        header: key,
+        key,
+        width: 24,
+    }));
+    uniq.forEach(row => cleanSheet.addRow(row));
+    cleanSheet.getRow(1).font = { bold: true };
+    // Overwrite the original consolidated file with the cleaned view
+    await cleanWb.xlsx.writeFile(sourceFile);
 }

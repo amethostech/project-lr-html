@@ -1,5 +1,6 @@
 import { searchUsptoDsapi } from '../services/usptoService.js';
-import { appendToExcelFile, appendToConsolidatedExcel, generateExcelBuffer } from '../services/excelService.js';
+import { appendToConsolidatedExcel, generateExcelBuffer } from '../services/excelService.js';
+import { normalizeResultsForConsolidated } from '../utils/consolidatedNormalizer.js';
 import { sendEmailWithSendGrid } from '../services/emailService.js';
 import User from '../models/User.js';
 import path from 'path';
@@ -68,19 +69,14 @@ async function processUsptoSearchAsync(recipientEmail, keywords, operator, limit
         const excelBuffer = await generateExcelBuffer(results);
         const excelSizeMB = (excelBuffer.length / (1024 * 1024)).toFixed(2);
 
-        // Save to Excel files (both individual and consolidated)
+        // Save only to the single consolidated Excel file (normalized for readability)
         try {
-            // Save to individual USPTO file
-            const individualFile = path.resolve('uspto_responses.xlsx');
-            await appendToExcelFile(individualFile, results, 'uspto responses');
-            
-            // Also save to consolidated file
             const consolidatedFile = path.resolve('consolidated_search_results.xlsx');
-            await appendToConsolidatedExcel(consolidatedFile, results, 'USPTO');
-            
-            console.log(`✅ Excel files updated: uspto_responses.xlsx and consolidated_search_results.xlsx (added ${results.length} records)`);
+            const normalized = normalizeResultsForConsolidated(results, 'USPTO');
+            await appendToConsolidatedExcel(consolidatedFile, normalized, 'USPTO');
+            console.log(`✅ Consolidated Excel updated: USPTO (${normalized.length} records)`);
         } catch (excelError) {
-            console.error(`⚠️ Warning: Failed to save Excel file: ${excelError.message}`);
+            console.error(`⚠️ Warning: Failed to save to consolidated Excel: ${excelError.message}`);
             // Continue even if Excel save fails - still send email
         }
 

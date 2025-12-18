@@ -2,6 +2,7 @@ import { GoogleSearch } from 'google-search-results-nodejs';
 import User from '../models/User.js';
 import { sendEmailWithSendGrid } from '../services/emailService.js';
 import { generateExcelBuffer, appendToConsolidatedExcel } from '../services/excelService.js';
+import { normalizeResultsForConsolidated } from '../utils/consolidatedNormalizer.js';
 import { SERP_API_KEY } from '../utils/constants.js';
 import path from 'path';
 
@@ -13,7 +14,7 @@ async function performGoogleScholarSearch(query, maxResults = 10, dbParams = {})
 
     const search = new GoogleSearch(SERP_API_KEY);
     const scholarParams = dbParams['google_scholar'] || {};
-    const numResults = Math.min(parseInt(maxResults) || 10, 20);
+    const numResults = parseInt(maxResults) || 10; // Note: SerpAPI may still cap to ~20
 
     const params = {
         engine: 'google_scholar',
@@ -96,11 +97,12 @@ async function processScholarSearchAsync(recipientEmail, query, maxResults, dbPa
         const excelBuffer = await generateExcelBuffer(results);
         const excelSizeMB = (excelBuffer.length / (1024 * 1024)).toFixed(2);
 
-        // Save to consolidated Excel file
+        // Save to consolidated Excel file (normalized for readability)
         try {
             const consolidatedFile = path.resolve('consolidated_search_results.xlsx');
-            await appendToConsolidatedExcel(consolidatedFile, results, 'Google Scholar');
-            console.log(`✅ Consolidated Excel updated: Google Scholar (${results.length} records)`);
+            const normalized = normalizeResultsForConsolidated(results, 'Google Scholar');
+            await appendToConsolidatedExcel(consolidatedFile, normalized, 'Google Scholar');
+            console.log(`✅ Consolidated Excel updated: Google Scholar (${normalized.length} records)`);
         } catch (excelError) {
             console.error(`⚠️ Warning: Failed to save to consolidated Excel: ${excelError.message}`);
             // Continue even if consolidated Excel save fails

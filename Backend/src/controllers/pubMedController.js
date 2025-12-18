@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import { sendEmailWithSendGrid } from '../services/emailService.js';
 import { generateExcelBuffer, appendToConsolidatedExcel } from '../services/excelService.js';
 import { searchPubMedUtil } from '../services/pubmedService.js';
+import { normalizeResultsForConsolidated } from '../utils/consolidatedNormalizer.js';
 import path from 'path';
 
 
@@ -11,7 +12,7 @@ import path from 'path';
 /**
  * Executes the search, generates the Excel, and sends the notification email.
  */
-async function processSearchAsync(recipientEmail, from, to, query, database) {
+async function processSearchAsync(recipientEmail, from, to, query, database, maxResults = 100) {
     const startTime = Date.now();
     const formattedFrom = from ? format(new Date(from), 'PPP') : 'N/A';
     const formattedTo = to ? format(new Date(to), 'PPP') : 'N/A';
@@ -36,8 +37,8 @@ async function processSearchAsync(recipientEmail, from, to, query, database) {
         // Case-insensitive database switch
         switch (database.toLowerCase()) {
             case "pubmed":
-                console.log(`[BACKGROUND] Calling searchPubMedUtil with query="${query}", from="${from}", to="${to}"`);
-                searchData = await searchPubMedUtil(query, from, to); 
+                console.log(`[BACKGROUND] Calling searchPubMedUtil with query="${query}", from="${from}", to="${to}", maxResults=${maxResults}`);
+                searchData = await searchPubMedUtil(query, from, to, maxResults); 
                 console.log(`[BACKGROUND] searchPubMedUtil returned: count=${searchData.count}, results=${searchData.results?.length || 0}`);
                 break;
             case "pubchem":
@@ -83,11 +84,12 @@ async function processSearchAsync(recipientEmail, from, to, query, database) {
         const excelBuffer = await generateExcelBuffer(results); 
         const excelSizeMB = (excelBuffer.length / (1024 * 1024)).toFixed(2);
         
-        // Save to consolidated Excel file
+        // Save to consolidated Excel file (normalized for readability)
         try {
             const consolidatedFile = path.resolve('consolidated_search_results.xlsx');
-            await appendToConsolidatedExcel(consolidatedFile, results, 'PubMed');
-            console.log(`✅ Consolidated Excel updated: PubMed (${results.length} records)`);
+            const normalized = normalizeResultsForConsolidated(results, 'PubMed');
+            await appendToConsolidatedExcel(consolidatedFile, normalized, 'PubMed');
+            console.log(`✅ Consolidated Excel updated: PubMed (${normalized.length} records)`);
         } catch (excelError) {
             console.error(`⚠️ Warning: Failed to save to consolidated Excel: ${excelError.message}`);
             // Continue even if consolidated Excel save fails
@@ -197,7 +199,7 @@ export const searchAPIController = async (req, res) => {
             return res.status(500).json({ error: 'Recipient email not found from token.' });
         }
 
-        let { from, to, query, database } = req.body;
+        let { from, to, query, database, maxResults } = req.body;
 
         if (!query || !database) {
             return res.status(400).json({ error: 'Missing required parameters: query, database' });
@@ -217,8 +219,12 @@ export const searchAPIController = async (req, res) => {
         console.log(`[API] Request from ${recipientEmail} for "${query}" on ${database}`);
 
         // Execute search in the background to prevent client timeout
+        // Respect user-specified maxResults; default to 100 if missing; require at least 1
+        const parsedMax = parseInt(maxResults || 100, 10);
+        const validMaxResults = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 100;
+
         setImmediate(() => {
-            processSearchAsync(recipientEmail, from || null, to || null, query, database).catch(err => {
+            processSearchAsync(recipientEmail, from || null, to || null, query, database, validMaxResults).catch(err => {
                 console.error('[API] Background error:', err);
             });
         });
