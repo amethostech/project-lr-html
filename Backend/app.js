@@ -15,8 +15,8 @@ const allowedOrigins = [
     'http://127.0.0.1:5500',
     'http://localhost:5500',
     'https://project-lr-html.vercel.app/index.html',
-    'https://project-lr-html.vercel.app',
-    'https://project-lr-frontend.onrender.com' // <-- placeholder Render frontend URL
+    'https://project-lr-one.vercel.app',
+    'https://project-lr-frontend.onrender.com' 
   ];
 // Connect to MongoDB (optional - only needed for auth/user features)
 // USPTO searches work without MongoDB
