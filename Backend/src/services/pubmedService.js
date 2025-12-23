@@ -13,7 +13,7 @@ function parseEFetchXML(xmlString, queryDetails) {
             return ['PubmedArticle', 'Author', 'MeshHeading', 'ArticleId'].includes(name);
         }
     });
-    
+
     const result = parser.parse(xmlString);
     const articles = result.PubmedArticleSet?.PubmedArticle || [];
     const articleList = Array.isArray(articles) ? articles : [articles];
@@ -25,12 +25,12 @@ function parseEFetchXML(xmlString, queryDetails) {
             const articleData = medlineCitation?.Article;
             const journal = articleData?.Journal;
             const meshHeadingList = medlineCitation?.MeshHeadingList?.MeshHeading || [];
-            
+
             // Core Data Extraction
             const title = articleData?.ArticleTitle || '';
             const abstractObj = articleData?.Abstract?.AbstractText;
             let abstractText = '';
-            
+
             if (typeof abstractObj === 'string') {
                 abstractText = abstractObj;
             } else if (Array.isArray(abstractObj)) {
@@ -40,7 +40,7 @@ function parseEFetchXML(xmlString, queryDetails) {
             }
 
             const pmid = medlineCitation?.PMID?.['#text'] || medlineCitation?.PMID || '';
-            
+
             // Extract Authors
             const authors = articleData?.AuthorList?.Author || [];
             const authorList = Array.isArray(authors) ? authors : [authors];
@@ -67,7 +67,7 @@ function parseEFetchXML(xmlString, queryDetails) {
                 .filter(m => m?.DescriptorName?.['@_MajorTopicYN'] === 'Y')
                 .map(m => m?.DescriptorName?.['#text'] || '')
                 .filter(Boolean);
-            
+
             const subheadings = meshList
                 .map(m => {
                     const qual = m?.QualifierName;
@@ -77,7 +77,7 @@ function parseEFetchXML(xmlString, queryDetails) {
                     return qual?.['#text'] || qual || '';
                 })
                 .filter(Boolean);
-            
+
             const allTerms = meshList
                 .map(m => m?.DescriptorName?.['#text'] || '')
                 .filter(Boolean);

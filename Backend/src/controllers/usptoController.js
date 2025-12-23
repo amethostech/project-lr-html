@@ -379,4 +379,3 @@ export const getUsptoFieldsController = async (req, res) => {
         });
     }
 };
-

@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from "./src/config/DataBase.js";
 import pubmedRoutes from './src/routes/pubmedRoutes.js';
+import pubchemRoutes from './src/routes/pubchemRoutes.js';
 import authRoutes from './src/routes/authRoutes.js'
 import profileRoutes from './src/routes/profileRoutes.js';
 import googleScholarRoutes from './src/routes/googleScholarRoutes.js'
@@ -24,10 +25,8 @@ const allowedOrigins = [
     'http://127.0.0.1:3000',
     'https://project-lr-html.vercel.app/index.html',
     'https://project-lr-one.vercel.app',
-    'https://project-lr-frontend.onrender.com' 
-  ];
-// Connect to MongoDB (optional - only needed for auth/user features)
-// USPTO searches work without MongoDB
+    'https://project-lr-frontend.onrender.com'
+];
 if (process.env.MONGO_URI) {
     connectDB().catch(err => {
         console.warn('⚠️  MongoDB connection failed, but server will continue running.');
@@ -50,31 +49,20 @@ app.use(cors({
 }))
 
 app.use(express.json()) ;
+app.get("/" , (req,res)=>{
+    res.send("Backend API is Running...")
+})
 
 // API Routes
 app.use("/api/pubmed", pubmedRoutes);
-app.use("/api/auth" , authRoutes);
+app.use("/api/pubchem", pubchemRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api", profileRoutes)
 app.use('/api/google', googleScholarRoutes)
 app.use('/api/uspto', usptoRoutes)
 app.use('/api/audit', auditRoutes)
 app.use('/api/search' , searchRoutes) 
 app.use('/api/news', newsArticlesRoutes) ;
-
-// Serve static files from frontend directory
-const frontendPath = path.join(__dirname, '..', 'frontend');
-app.use(express.static(frontendPath));
-
-// Serve frontend pages
-app.get('/pages/:page', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'pages', req.params.page));
-});
-
-// Serve main index.html for root (must be last)
-app.get("/" , (req,res)=>{
-    res.sendFile(path.join(frontendPath, 'index.html'));
-})
-
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
@@ -83,4 +71,4 @@ app.use((err, req, res, next) => {
     });
 });
 
-export default app ;
+export default app;
