@@ -83,7 +83,10 @@ const DATABASES = [
 const state = {
     keywords: [],
     dbParams: {},
-    selectedDbs: new Set()
+    selectedDbs: new Set(),
+    searchResults: [], // Array of { database, results: [], timestamp }
+    activeDatabaseFilter: null, // null means show all
+    activeDocument: null // Currently selected document for viewing
 };
 
 /***************************************************************
@@ -550,18 +553,99 @@ async function performSingleDatabaseSearch(database) {
 
         console.log("✅ Server response:", data);
 
-        // Handle different response formats
+        // Extract and store results for display
+        let resultsToDisplay = [];
         if (isUspto) {
             // USPTO returns: { success, results, total, shown, query, message }
-            if (data && data.success) {
+            // Note: Currently USPTO processes in background, so results may not be in response
+            if (data && data.success && data.results && Array.isArray(data.results)) {
+                resultsToDisplay = data.results.map(result => {
+                    // Extract abstract from various possible fields
+                    let abstract = result.abstract || 
+                                  result.abstractText || 
+                                  result.Abstract || 
+                                  result.abstractText_en || 
+                                  result.abstract_en ||
+                                  result.description ||
+                                  result.Description ||
+                                  (result.abstract && Array.isArray(result.abstract) ? result.abstract.join(' ') : null) ||
+                                  (result.description && Array.isArray(result.description) ? result.description.join(' ') : null) ||
+                                  'No abstract available';
+                    
+                    // If abstract is an array, join it
+                    if (Array.isArray(abstract)) {
+                        abstract = abstract.join(' ');
+                    }
+                    
+                    // Extract title from various possible fields
+                    const title = result.title || 
+                                 result.titleText || 
+                                 result.inventionTitle || 
+                                 result.InventionTitle ||
+                                 result.title_en ||
+                                 result.patentTitle ||
+                                 'Untitled Patent';
+                    
+                    // Extract publication year
+                    const pubDate = result.pubDate || 
+                                  result.grantDate || 
+                                  result.publicationDate || 
+                                  result.PublicationDate ||
+                                  result.issueDate ||
+                                  result.IssueDate ||
+                                  null;
+                    
+                    let pubYear = 'N/A';
+                    if (pubDate) {
+                        // Try to extract year from date string
+                        const yearMatch = String(pubDate).match(/(\d{4})/);
+                        if (yearMatch) {
+                            pubYear = yearMatch[1];
+                        }
+                    }
+                    
+                    return {
+                        ...result,
+                        Source: 'USPTO',
+                        Title: title,
+                        Abstract: abstract,
+                        Authors: result.inventor || result.inventorName || result.inventorNameText || result.Inventor || 'N/A',
+                        'Publication Year': pubYear,
+                        'DOI/PMID': result.patentNumber || result.patentNumberText || result.patentNo || result.publicationNumber || result.PublicationNumber || 'N/A'
+                    };
+                });
                 showStatus(`Found ${data.total || 0} total results. Showing ${data.shown || 0} results. Saved to consolidated Excel!`, 7000);
+            } else if (data && data.status === 'processing') {
+                // Background processing - results will be emailed
+                showStatus(`Search submitted! Results will be emailed to you. Check your email shortly.`, 7000);
             } else {
                 showStatus(data.message || "Submitted successfully ✅", 5000);
             }
+        } else if (data && data.results && Array.isArray(data.results)) {
+            // Standard format: { count, results: [...] } - ClinicalTrials returns this
+            resultsToDisplay = data.results;
+            const dbName = DATABASES.find(db => db.id === database)?.label || database;
+            showStatus(`Found ${data.count || resultsToDisplay.length} records from ${dbName}. Saved to consolidated Excel!`, 7000);
+        } else if (data && data.status === 'processing' || data.status === 'success') {
+            // Background processing (PubMed, Google Scholar) - results will be emailed
+            const dbName = DATABASES.find(db => db.id === database)?.label || database;
+            showStatus(`Search submitted for ${dbName}! Results will be emailed to you. Check your email shortly.`, 7000);
         } else if (data && typeof data.count !== "undefined") {
             showStatus(`Found ${data.count} records from ${database}. Saved to consolidated Excel!`, 7000);
         } else {
             showStatus("Submitted successfully ✅ - Results saved to consolidated Excel!", 5000);
+        }
+
+        // Store results for display (only if we have actual results)
+        if (resultsToDisplay.length > 0) {
+            const dbName = DATABASES.find(db => db.id === database)?.label || database;
+            state.searchResults.push({
+                database: database,
+                databaseLabel: dbName,
+                results: resultsToDisplay,
+                timestamp: new Date().toISOString()
+            });
+            renderResults();
         }
     } catch (err) {
         console.error("❌ Search error:", err);
@@ -593,6 +677,303 @@ function clearForm() {
         newsCheckbox.checked = false;
     }
     showStatus("Form cleared", 2000);
+    // Note: Search results are NOT cleared by clearForm - use "Clear Results" button in viewer
+}
+
+/***************************************************************
+ * Document Viewer Functions
+ ***************************************************************/
+
+function renderResults() {
+    const viewerSection = document.getElementById("documentViewerSection");
+    const emptyState = document.getElementById("emptyState");
+    const resultsListContent = document.getElementById("resultsListContent");
+    const resultsCount = document.getElementById("resultsCount");
+    const databaseFilters = document.getElementById("databaseFilters");
+    const databaseTags = document.getElementById("databaseTags");
+    const clearResultsBtn = document.getElementById("clearResultsBtn");
+
+    if (state.searchResults.length === 0) {
+        if (viewerSection) viewerSection.style.display = "none";
+        if (emptyState) emptyState.style.display = "flex";
+        return;
+    }
+
+    if (viewerSection) viewerSection.style.display = "block";
+    if (emptyState) emptyState.style.display = "none";
+
+    // Get all unique databases
+    const uniqueDatabases = [...new Set(state.searchResults.map(r => r.database))];
+    
+    // Show/hide database filters
+    if (uniqueDatabases.length > 1) {
+        databaseFilters.style.display = "block";
+        
+        // Render database filter tags
+        databaseTags.innerHTML = "";
+        
+        // Add "All" tag
+        const allTag = document.createElement("button");
+        allTag.className = `database-tag-filter all ${state.activeDatabaseFilter === null ? 'active' : ''}`;
+        allTag.textContent = "All";
+        allTag.addEventListener("click", () => {
+            state.activeDatabaseFilter = null;
+            renderResults();
+        });
+        databaseTags.appendChild(allTag);
+
+        // Add individual database tags
+        uniqueDatabases.forEach(dbId => {
+            const dbResult = state.searchResults.find(r => r.database === dbId);
+            const dbLabel = dbResult ? dbResult.databaseLabel : dbId;
+            const tag = document.createElement("button");
+            tag.className = `database-tag-filter ${state.activeDatabaseFilter === dbId ? 'active' : ''}`;
+            tag.textContent = dbLabel;
+            tag.addEventListener("click", () => {
+                state.activeDatabaseFilter = dbId;
+                renderResults();
+            });
+            databaseTags.appendChild(tag);
+        });
+    } else {
+        databaseFilters.style.display = "none";
+    }
+
+    // Filter results based on active database filter
+    let filteredResults = [];
+    if (state.activeDatabaseFilter === null) {
+        // Show all results
+        state.searchResults.forEach(dbResult => {
+            dbResult.results.forEach((result, index) => {
+                filteredResults.push({
+                    ...result,
+                    _database: dbResult.database,
+                    _databaseLabel: dbResult.databaseLabel,
+                    _index: index
+                });
+            });
+        });
+    } else {
+        // Show only results from selected database
+        const dbResult = state.searchResults.find(r => r.database === state.activeDatabaseFilter);
+        if (dbResult) {
+            dbResult.results.forEach((result, index) => {
+                filteredResults.push({
+                    ...result,
+                    _database: dbResult.database,
+                    _databaseLabel: dbResult.databaseLabel,
+                    _index: index
+                });
+            });
+        }
+    }
+
+    // Update results count
+    resultsCount.textContent = `${filteredResults.length} document${filteredResults.length !== 1 ? 's' : ''} found`;
+
+    // Render results list
+    resultsListContent.innerHTML = "";
+    
+    if (filteredResults.length === 0) {
+        resultsListContent.innerHTML = `
+            <p class="small" style="color: var(--muted); text-align: center; padding: 40px 0;">
+                No results to display.
+            </p>
+        `;
+        return;
+    }
+
+    filteredResults.forEach((result, idx) => {
+        const item = document.createElement("div");
+        const docId = `${result._database}_${result._index}`;
+        const isActive = state.activeDocument === docId;
+        item.className = `result-item ${isActive ? 'active' : ''}`;
+        item.style.cursor = 'pointer';
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+        item.setAttribute('aria-label', `View document: ${result.Title || result.title || 'Untitled'}`);
+        
+        // Click handler
+        const handleClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("Document clicked:", docId, result);
+            state.activeDocument = docId;
+            state._skipAutoRender = true; // Prevent auto-render in renderResults
+            // Store the result for the viewer (deep copy to avoid reference issues)
+            const selectedResult = JSON.parse(JSON.stringify(result));
+            // Re-render the list first to update active states
+            renderResults();
+            // Then render the viewer with the selected document
+            renderDocumentViewer(selectedResult);
+        };
+        
+        item.addEventListener("click", handleClick);
+        // Also support keyboard navigation
+        item.addEventListener("keydown", (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick(e);
+            }
+        });
+
+        const title = result.Title || result.title || 'Untitled';
+        const authors = result.Authors || result.authors || result.Author || 'N/A';
+        const year = result['Publication Year'] || result.year || result.pubYear || 'N/A';
+        const abstract = result.Abstract || result.abstract || result.snippet || 'No abstract available';
+        const source = result.Source || result._databaseLabel || 'Unknown';
+
+        item.innerHTML = `
+            <div class="result-item-title">${escapeHtml(title)}</div>
+            <div class="result-item-meta">${escapeHtml(authors)} • ${escapeHtml(String(year))}</div>
+            <div class="result-item-abstract">${escapeHtml(abstract)}</div>
+            <div class="result-item-tags">
+                <span class="result-tag">${escapeHtml(source)}</span>
+            </div>
+        `;
+
+        resultsListContent.appendChild(item);
+    });
+
+    // If there's an active document and we're not in a click handler, render it in the viewer
+    // (Click handler will render it separately to avoid conflicts)
+    if (state.activeDocument && !state._skipAutoRender) {
+        const activeDoc = filteredResults.find(r => `${r._database}_${r._index}` === state.activeDocument);
+        if (activeDoc) {
+            renderDocumentViewer(activeDoc);
+        } else {
+            // Active document might be from a different filter, try to find it in all results
+            let foundDoc = null;
+            for (const dbResult of state.searchResults) {
+                for (let i = 0; i < dbResult.results.length; i++) {
+                    const docId = `${dbResult.database}_${i}`;
+                    if (docId === state.activeDocument) {
+                        foundDoc = {
+                            ...dbResult.results[i],
+                            _database: dbResult.database,
+                            _databaseLabel: dbResult.databaseLabel,
+                            _index: i
+                        };
+                        break;
+                    }
+                }
+                if (foundDoc) break;
+            }
+            if (foundDoc) {
+                renderDocumentViewer(foundDoc);
+            } else {
+                renderDocumentViewer(null);
+            }
+        }
+    } else if (!state.activeDocument) {
+        renderDocumentViewer(null);
+    }
+    
+    // Reset the flag after rendering
+    if (state._skipAutoRender) {
+        state._skipAutoRender = false;
+    }
+
+    // Show clear results button
+    clearResultsBtn.style.display = "block";
+    clearResultsBtn.onclick = () => {
+        if (confirm("Clear all search results?")) {
+            state.searchResults = [];
+            state.activeDatabaseFilter = null;
+            state.activeDocument = null;
+            renderResults();
+        }
+    };
+}
+
+function renderDocumentViewer(docData) {
+    const viewerContent = document.getElementById("documentViewerContent");
+    const closeViewerBtn = document.getElementById("closeViewerBtn");
+
+    if (!viewerContent) {
+        console.error("Document viewer content element not found");
+        return;
+    }
+
+    if (!docData) {
+        viewerContent.innerHTML = `
+            <p class="empty-state">
+                Click on a document from the list to view its details here.
+            </p>
+        `;
+        if (closeViewerBtn) closeViewerBtn.style.display = "none";
+        return;
+    }
+
+    console.log("Rendering document viewer with:", docData);
+
+    closeViewerBtn.style.display = "block";
+    closeViewerBtn.onclick = () => {
+        state.activeDocument = null;
+        renderResults();
+        renderDocumentViewer(null);
+    };
+
+    // Build document viewer HTML
+    const fields = [
+        { label: 'Title', key: 'Title', altKeys: ['title'] },
+        { label: 'Authors', key: 'Authors', altKeys: ['authors', 'Author'] },
+        { label: 'Publication Year', key: 'Publication Year', altKeys: ['year', 'pubYear'] },
+        { label: 'Source', key: 'Source', altKeys: ['_databaseLabel'] },
+        { label: 'DOI/PMID', key: 'DOI/PMID', altKeys: ['DOI_PMID', 'doi', 'pmid'] },
+        { label: 'Abstract', key: 'Abstract', altKeys: ['abstract', 'snippet'], isAbstract: true }
+    ];
+
+    let html = '';
+    fields.forEach(field => {
+        let value = docData[field.key];
+        if (!value && field.altKeys) {
+            for (const altKey of field.altKeys) {
+                if (docData[altKey]) {
+                    value = docData[altKey];
+                    break;
+                }
+            }
+        }
+        
+        if (value && value !== 'N/A') {
+            const fieldClass = field.isAbstract ? 'abstract' : '';
+            html += `
+                <div class="document-field">
+                    <div class="document-field-label">${escapeHtml(field.label)}:</div>
+                    <div class="document-field-value ${fieldClass}">${escapeHtml(String(value))}</div>
+                </div>
+            `;
+        }
+    });
+
+    // Add any additional fields that might be present
+    const displayedKeys = new Set(['Title', 'title', 'Authors', 'authors', 'Author', 'Publication Year', 'year', 'pubYear', 
+        'Source', '_databaseLabel', 'DOI/PMID', 'DOI_PMID', 'doi', 'pmid', 'Abstract', 'abstract', 'snippet', 
+        '_database', '_databaseLabel', '_index']);
+    
+    Object.keys(docData).forEach(key => {
+        if (!displayedKeys.has(key) && docData[key] && docData[key] !== 'N/A' && typeof docData[key] === 'string') {
+            html += `
+                <div class="document-field">
+                    <div class="document-field-label">${escapeHtml(key)}:</div>
+                    <div class="document-field-value">${escapeHtml(String(docData[key]))}</div>
+                </div>
+            `;
+        }
+    });
+
+    viewerContent.innerHTML = html || `
+        <p class="small" style="color: var(--muted); text-align: center; padding: 40px 0;">
+            No details available for this document.
+        </p>
+    `;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 /***************************************************************

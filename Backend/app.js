@@ -1,5 +1,7 @@
 import express from "express";
 import cors from 'cors'
+import path from 'path';
+import { fileURLToPath } from 'url';
 import connectDB from "./src/config/DataBase.js";
 import pubmedRoutes from './src/routes/pubmedRoutes.js';
 import authRoutes from './src/routes/authRoutes.js'
@@ -9,11 +11,17 @@ import usptoRoutes from './src/routes/usptoRoutes.js'
 import auditRoutes from './src/routes/auditRoutes.js'
 import searchRoutes from './src/routes/searchRoutes.js'
 import newsArticlesRoutes from './src/routes/newsArticlesRoutes.js'
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 
 const allowedOrigins = [
     'http://127.0.0.1:5500',
     'http://localhost:5500',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     'https://project-lr-html.vercel.app/index.html',
     'https://project-lr-one.vercel.app',
     'https://project-lr-frontend.onrender.com' 
@@ -42,10 +50,8 @@ app.use(cors({
 }))
 
 app.use(express.json()) ;
-app.get("/" , (req,res)=>{
-    res.send("Backend API is Running...")
-})
 
+// API Routes
 app.use("/api/pubmed", pubmedRoutes);
 app.use("/api/auth" , authRoutes);
 app.use("/api", profileRoutes)
@@ -54,6 +60,21 @@ app.use('/api/uspto', usptoRoutes)
 app.use('/api/audit', auditRoutes)
 app.use('/api/search' , searchRoutes) 
 app.use('/api/news', newsArticlesRoutes) ;
+
+// Serve static files from frontend directory
+const frontendPath = path.join(__dirname, '..', 'frontend');
+app.use(express.static(frontendPath));
+
+// Serve frontend pages
+app.get('/pages/:page', (req, res) => {
+    res.sendFile(path.join(frontendPath, 'pages', req.params.page));
+});
+
+// Serve main index.html for root (must be last)
+app.get("/" , (req,res)=>{
+    res.sendFile(path.join(frontendPath, 'index.html'));
+})
+
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({

@@ -219,20 +219,109 @@ export const searchUsptoController = async (req, res) => {
 
         console.log(`[USPTO] Request from ${recipientEmail} for: "${filteredKeywords.join(', ')}" with operator: ${validOperator}, limit: ${validLimit}`);
 
-        // Process search in background and respond immediately
+        // Perform search synchronously to return results to frontend
+        const result = await searchUsptoDsapi(filteredKeywords, validOperator, validLimit);
+
+        // Check for errors
+        if (result.error) {
+            return res.status(500).json({
+                success: false,
+                error: result.error,
+                results: [],
+                total: 0
+            });
+        }
+
+        const { results, total, shown } = result;
+
+        // Format results to ensure abstracts and other fields are properly extracted
+        const formattedResults = (results || []).map(patent => {
+            // Extract abstract from various possible fields in USPTO API response
+            let abstract = patent.abstract || 
+                          patent.abstractText || 
+                          patent.Abstract || 
+                          patent.abstractText_en || 
+                          patent.abstract_en ||
+                          patent.description ||
+                          patent.Description ||
+                          patent.abstractText_original ||
+                          null;
+            
+            // Handle array abstracts
+            if (Array.isArray(abstract)) {
+                abstract = abstract.join(' ');
+            }
+            
+            // If still no abstract, try to get from nested fields
+            if (!abstract && patent.abstractText) {
+                if (typeof patent.abstractText === 'string') {
+                    abstract = patent.abstractText;
+                } else if (Array.isArray(patent.abstractText)) {
+                    abstract = patent.abstractText.join(' ');
+                } else if (patent.abstractText.text || patent.abstractText.value) {
+                    abstract = patent.abstractText.text || patent.abstractText.value;
+                }
+            }
+            
+            // Extract title
+            const title = patent.title || 
+                         patent.titleText || 
+                         patent.inventionTitle || 
+                         patent.InventionTitle ||
+                         patent.title_en ||
+                         patent.patentTitle ||
+                         patent.inventionTitleText ||
+                         'Untitled Patent';
+            
+            // Extract publication year from date fields
+            const pubDate = patent.pubDate || 
+                           patent.grantDate || 
+                           patent.publicationDate || 
+                           patent.PublicationDate ||
+                           patent.issueDate ||
+                           patent.IssueDate ||
+                           null;
+            
+            let pubYear = null;
+            if (pubDate) {
+                const dateStr = String(pubDate);
+                const yearMatch = dateStr.match(/(\d{4})/);
+                if (yearMatch) {
+                    pubYear = yearMatch[1];
+                }
+            }
+            
+            // Return formatted patent with all original fields plus formatted ones
+            return {
+                ...patent,
+                // Ensure these fields are always present for frontend display
+                abstract: abstract || 'No abstract available',
+                Abstract: abstract || 'No abstract available',
+                title: title,
+                Title: title,
+                publicationYear: pubYear,
+                'Publication Year': pubYear,
+                // Keep original fields for reference
+                _originalAbstract: patent.abstract,
+                _originalTitle: patent.title
+            };
+        });
+
+        // Send email in background (non-blocking)
         setImmediate(() => {
             processUsptoSearchAsync(recipientEmail, filteredKeywords, validOperator, validLimit).catch(err => {
-                console.error('[USPTO] Background process error:', err.message);
+                console.error('[USPTO] Background email error:', err.message);
             });
         });
 
-        // Respond immediately with 202 Accepted
-        return res.status(202).json({
+        // Return formatted results immediately to frontend
+        return res.status(200).json({
             success: true,
-            message: `Search request received! Results will be emailed to ${recipientEmail} shortly.`,
-            status: 'processing',
+            results: formattedResults,
+            total: total || formattedResults.length,
+            shown: shown || formattedResults.length,
+            message: `Found ${total || formattedResults.length} results. Results will also be emailed to ${recipientEmail} shortly.`,
             database: 'USPTO Patents',
-            estimatedTime: '1-3 minutes',
             recipientEmail: recipientEmail
         });
 

@@ -203,7 +203,11 @@ export const searchGoogleScholar = async (req, res) => {
     try {
         console.log(`[Scholar] Request from ${recipientEmail}: "${query}"`);
         
-        // Start background processing
+        // Perform search synchronously to return results to frontend
+        const { count, results } = await performGoogleScholarSearch(query, maxResults || 10, dbParams || {});
+        console.log(`[Scholar] Found ${results.length} results`);
+
+        // Send email in background (non-blocking)
         setImmediate(() => {
             processScholarSearchAsync(
                 recipientEmail, 
@@ -211,16 +215,16 @@ export const searchGoogleScholar = async (req, res) => {
                 maxResults || 10, 
                 dbParams || {}
             ).catch(err => {
-                console.error('[Scholar] Background process error:', err.message);
+                console.error('[Scholar] Background email error:', err.message);
             });
         });
 
-        // Respond immediately
-        return res.status(202).json({
+        // Return results immediately to frontend
+        return res.status(200).json({
             status: 'success',
-            message: `Your search for "${query}" has been received. Results will be emailed to ${recipientEmail} shortly.`,
-            processing: true,
-            estimatedTime: '1-3 minutes',
+            count: count || results.length,
+            results: results || [],
+            message: `Found ${count || results.length} results. Results will also be emailed to ${recipientEmail} shortly.`,
             recipientEmail: recipientEmail
         });
 

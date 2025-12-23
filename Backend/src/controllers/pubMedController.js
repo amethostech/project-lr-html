@@ -218,25 +218,43 @@ export const searchAPIController = async (req, res) => {
 
         console.log(`[API] Request from ${recipientEmail} for "${query}" on ${database}`);
 
-        // Execute search in the background to prevent client timeout
         // Respect user-specified maxResults; default to 100 if missing; require at least 1
         const parsedMax = parseInt(maxResults || 100, 10);
         const validMaxResults = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 100;
 
+        // Perform search synchronously to return results to frontend
+        let searchData = { count: 0, results: [] };
+        const displayDatabase = database.charAt(0).toUpperCase() + database.slice(1);
+
+        // Case-insensitive database switch
+        switch (database.toLowerCase()) {
+            case "pubmed":
+                console.log(`[API] Calling searchPubMedUtil with query="${query}", from="${from}", to="${to}", maxResults=${validMaxResults}`);
+                searchData = await searchPubMedUtil(query, from || null, to || null, validMaxResults);
+                console.log(`[API] searchPubMedUtil returned: count=${searchData.count}, results=${searchData.results?.length || 0}`);
+                break;
+            default:
+                return res.status(400).json({
+                    error: `Search functionality for ${displayDatabase} is not supported via this endpoint. Available: PubMed`
+                });
+        }
+
+        const { count, results } = searchData;
+
+        // Send email in background (non-blocking)
         setImmediate(() => {
             processSearchAsync(recipientEmail, from || null, to || null, query, database, validMaxResults).catch(err => {
-                console.error('[API] Background error:', err);
+                console.error('[API] Background email error:', err);
             });
         });
 
-        // Respond immediately with 202 Accepted
-        const displayDatabase = database.charAt(0).toUpperCase() + database.slice(1);
-        return res.status(202).json({
+        // Return results immediately to frontend
+        return res.status(200).json({
             success: true,
-            message: `Search request received! Results will be emailed to ${recipientEmail} shortly.`,
-            status: 'processing',
-            database: displayDatabase,
-            estimatedTime: '1-2 minutes'
+            count: count || results.length,
+            results: results || [],
+            message: `Found ${count || results.length} results. Results will also be emailed to ${recipientEmail} shortly.`,
+            database: displayDatabase
         });
 
     } catch (error) {

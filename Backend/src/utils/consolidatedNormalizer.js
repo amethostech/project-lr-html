@@ -58,16 +58,35 @@ function normalizeTrials(row, source) {
 }
 
 function normalizePatents(row, source) {
+  // Extract abstract from various possible fields
+  let abstract = pick(row, ['abstract', 'Abstract', 'abstractText', 'abstractText_en', 'abstract_en', 'description', 'Description', 'abstractText_original']);
+  
+  // Handle array abstracts
+  if (Array.isArray(abstract)) {
+    abstract = abstract.join(' ');
+  }
+  
+  // If still no abstract, try nested structures
+  if (!abstract && row.abstractText) {
+    if (typeof row.abstractText === 'string') {
+      abstract = row.abstractText;
+    } else if (Array.isArray(row.abstractText)) {
+      abstract = row.abstractText.join(' ');
+    } else if (row.abstractText.text || row.abstractText.value) {
+      abstract = row.abstractText.text || row.abstractText.value;
+    }
+  }
+  
   return {
-    Title: pick(row, ['title', 'inventionTitle', 'Invention Title', 'inventorNameText']),
-    'Publication Number': pick(row, ['publicationNumber', 'Publication Number']),
+    Title: pick(row, ['title', 'inventionTitle', 'Invention Title', 'inventorNameText', 'titleText', 'title_en', 'patentTitle', 'inventionTitleText']),
+    'Publication Number': pick(row, ['publicationNumber', 'Publication Number', 'patentNumber', 'patentNumberText', 'patentNo']),
     'Application Number': pick(row, ['applicationNumber', 'Application Number']),
     'Filing Date': pick(row, ['filingDate', 'Filing Date']),
-    'Publication Date': pick(row, ['publicationDate', 'Publication Date']),
-    'Issue Date': pick(row, ['issueDate', 'Issue Date']),
+    'Publication Date': pick(row, ['publicationDate', 'Publication Date', 'pubDate']),
+    'Issue Date': pick(row, ['issueDate', 'Issue Date', 'grantDate']),
     Assignee: pick(row, ['assignee', 'assigneeName', 'Assignee Name']),
-    Inventor: pick(row, ['inventor', 'inventorName', 'Inventor Name']),
-    Abstract: pick(row, ['abstract', 'Abstract']),
+    Inventor: pick(row, ['inventor', 'inventorName', 'Inventor Name', 'inventorNameText']),
+    Abstract: abstract || 'No abstract available',
     'Source Database': source,
     'Search Date': new Date().toISOString().split('T')[0],
   };
