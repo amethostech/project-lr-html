@@ -171,7 +171,7 @@ function renderDbList() {
     const allCheckboxes = [];
 
     // Only show databases that are actually supported by the backend.
-    const SUPPORTED_DB_IDS = new Set(["pubmed", "google_scholar", "clinicaltrials", "patents"]);
+    const SUPPORTED_DB_IDS = new Set(["pubmed", "google_scholar", "clinicaltrials", "patents" , "pubchem"]);
 
     DATABASES.filter(db => SUPPORTED_DB_IDS.has(db.id)).forEach(db => {
         const item = document.createElement("label");
@@ -441,6 +441,7 @@ async function performNewsArticlesSearch() {
 async function performSingleDatabaseSearch(database) {
     let endpointPath;
     let isUspto = false;
+    let isPubchem = false;
 
     if (database === 'pubmed') {
         endpointPath = '/api/pubmed/search';
@@ -451,6 +452,9 @@ async function performSingleDatabaseSearch(database) {
         isUspto = true;
     } else if (database === 'clinicaltrials') {
         endpointPath = '/api/search';
+    } else if (database === 'pubchem') {
+        endpointPath = '/api/pubchem/search';
+        isPubchem = true;
     } else {
         return alert(`Search for database ${database} is not supported.`);
     }
@@ -483,7 +487,7 @@ async function performSingleDatabaseSearch(database) {
         return i < keywords.length - 1 ? `${text} ${k.operatorAfter}` : text;
     }).join(' ');
 
-    // Build payload - different format for USPTO
+    // Build payload - different format for USPTO and PubChem
     let payload;
     if (isUspto) {
         // USPTO expects: { keywords: string[], operator: "AND"|"OR", limit: number }
@@ -493,6 +497,18 @@ async function performSingleDatabaseSearch(database) {
             keywords: keywordValues,
             operator: operator.toUpperCase(),
             limit: maxResults
+        };
+    } else if (isPubchem) {
+        // PubChem expects: { molecule, bioassay, target_class }
+        const pubParams = dbParams.pubchem || {};
+        const moleculeVal = (pubParams.molecule && String(pubParams.molecule).trim()) || query || "";
+        const bioassayVal = (pubParams.bioassay && String(pubParams.bioassay).trim()) || "Any";
+        const targetClassVal = (pubParams.target_class && String(pubParams.target_class).trim()) || "";
+
+        payload = {
+            molecule: moleculeVal,
+            bioassay: bioassayVal,
+            target_class: targetClassVal
         };
     } else {
         // Standard payload for other databases

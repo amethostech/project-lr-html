@@ -1,6 +1,5 @@
 import fetch from 'node-fetch';
 
-
 function classifyAssay(assayType) {
     if (!assayType) return "Unknown";
     const type = assayType.toLowerCase();
@@ -15,7 +14,7 @@ function classifyAssay(assayType) {
  * @param {string} molecule - Molecule name
  * @param {string} bioassayFilter - Filter for bioassay type
  * @param {string} targetClass - Filter for target class
- * @returns {Promise<Array>} - List of assay records
+ * @returns {Promise<Array>} - List of assay records (Limited to 100)
  */
 export async function fetchPubchemData(molecule, bioassayFilter = "Any", targetClass = "") {
     try {
@@ -23,13 +22,8 @@ export async function fetchPubchemData(molecule, bioassayFilter = "Any", targetC
 
         let compoundRes = await fetch(compoundUrl);
 
-        if (compoundRes.status === 404) {
-            return [];
-        }
-
-        if (!compoundRes.ok) {
-            throw new Error(`PubChem compound fetch failed: ${compoundRes.statusText}`);
-        }
+        if (compoundRes.status === 404) return [];
+        if (!compoundRes.ok) throw new Error(`PubChem compound fetch failed: ${compoundRes.statusText}`);
 
         const compoundData = await compoundRes.json();
         const properties = compoundData.PropertyTable?.Properties;
@@ -41,36 +35,49 @@ export async function fetchPubchemData(molecule, bioassayFilter = "Any", targetC
         const iupacName = compound.IUPACName;
         const smiles = compound.CanonicalSMILES;
 
-        const assayUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/assaysummary/JSON`;
+        // 1. Fetch all AIDs
+        const aidsUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/aids/JSON`;
+        const aidsRes = await fetch(aidsUrl);
 
-        let assayRes = await fetch(assayUrl);
+        if (aidsRes.status === 404) return [];
+        if (!aidsRes.ok) throw new Error(`PubChem AIDs fetch failed: ${aidsRes.statusText}`);
 
-        if (assayRes.status === 404) {
+        const aidsData = await aidsRes.json();
+        const fullAidsList = aidsData.InformationList?.Information?.[0]?.AID;
+
+        if (!fullAidsList || fullAidsList.length === 0) return [];
+
+        // --- HARD LIMIT: Only process the first 100 AIDs to prevent payload errors ---
+        const LIMIT = 100;
+        const aidsList = fullAidsList.slice(0, LIMIT);
+
+        console.log(`[PubChem] Found ${fullAidsList.length} total. Processing first ${aidsList.length} for email...`);
+
+        // 2. Fetch summaries for the limited list
+        const aidsStr = aidsList.join(',');
+        const summaryUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/assay/aid/${aidsStr}/summary/JSON`;
+        const res = await fetch(summaryUrl);
+
+        if (!res.ok) {
+            console.warn(`[PubChem] Summary fetch failed. Status: ${res.status}`);
             return [];
         }
 
-        if (!assayRes.ok) {
-            return [];
-        }
-
-        const assayData = await assayRes.json();
-        if (!assayData || !assayData.AssaySummaries || !assayData.AssaySummaries.AssaySummary) {
-            return [];
-        }
-
-        const assays = assayData.AssaySummaries.AssaySummary;
+        const data = await res.json();
+        const summaries = data.AssaySummaries?.AssaySummary || [];
         const records = [];
 
-        for (const a of assays) {
+        for (const a of summaries) {
             const assayType = a.AssayType || "";
             const category = classifyAssay(assayType);
 
+            // Filter by Bioassay Type
             if (bioassayFilter && bioassayFilter !== "Any" && category.toLowerCase() !== bioassayFilter.toLowerCase()) {
                 continue;
             }
 
+            // Filter by Target Class
             const target = a.TargetName || "";
-
             if (targetClass && !target.toLowerCase().includes(targetClass.toLowerCase())) {
                 continue;
             }
