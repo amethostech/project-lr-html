@@ -171,7 +171,7 @@ function renderDbList() {
     const allCheckboxes = [];
 
     // Only show databases that are actually supported by the backend.
-    const SUPPORTED_DB_IDS = new Set(["pubmed", "google_scholar", "clinicaltrials", "patents" , "pubchem"]);
+    const SUPPORTED_DB_IDS = new Set(["pubmed", "google_scholar", "clinicaltrials", "patents", "pubchem"]);
 
     DATABASES.filter(db => SUPPORTED_DB_IDS.has(db.id)).forEach(db => {
         const item = document.createElement("label");
@@ -577,40 +577,40 @@ async function performSingleDatabaseSearch(database) {
             if (data && data.success && data.results && Array.isArray(data.results)) {
                 resultsToDisplay = data.results.map(result => {
                     // Extract abstract from various possible fields
-                    let abstract = result.abstract || 
-                                  result.abstractText || 
-                                  result.Abstract || 
-                                  result.abstractText_en || 
-                                  result.abstract_en ||
-                                  result.description ||
-                                  result.Description ||
-                                  (result.abstract && Array.isArray(result.abstract) ? result.abstract.join(' ') : null) ||
-                                  (result.description && Array.isArray(result.description) ? result.description.join(' ') : null) ||
-                                  'No abstract available';
-                    
+                    let abstract = result.abstract ||
+                        result.abstractText ||
+                        result.Abstract ||
+                        result.abstractText_en ||
+                        result.abstract_en ||
+                        result.description ||
+                        result.Description ||
+                        (result.abstract && Array.isArray(result.abstract) ? result.abstract.join(' ') : null) ||
+                        (result.description && Array.isArray(result.description) ? result.description.join(' ') : null) ||
+                        'No abstract available';
+
                     // If abstract is an array, join it
                     if (Array.isArray(abstract)) {
                         abstract = abstract.join(' ');
                     }
-                    
+
                     // Extract title from various possible fields
-                    const title = result.title || 
-                                 result.titleText || 
-                                 result.inventionTitle || 
-                                 result.InventionTitle ||
-                                 result.title_en ||
-                                 result.patentTitle ||
-                                 'Untitled Patent';
-                    
+                    const title = result.title ||
+                        result.titleText ||
+                        result.inventionTitle ||
+                        result.InventionTitle ||
+                        result.title_en ||
+                        result.patentTitle ||
+                        'Untitled Patent';
+
                     // Extract publication year
-                    const pubDate = result.pubDate || 
-                                  result.grantDate || 
-                                  result.publicationDate || 
-                                  result.PublicationDate ||
-                                  result.issueDate ||
-                                  result.IssueDate ||
-                                  null;
-                    
+                    const pubDate = result.pubDate ||
+                        result.grantDate ||
+                        result.publicationDate ||
+                        result.PublicationDate ||
+                        result.issueDate ||
+                        result.IssueDate ||
+                        null;
+
                     let pubYear = 'N/A';
                     if (pubDate) {
                         // Try to extract year from date string
@@ -619,7 +619,7 @@ async function performSingleDatabaseSearch(database) {
                             pubYear = yearMatch[1];
                         }
                     }
-                    
+
                     return {
                         ...result,
                         Source: 'USPTO',
@@ -720,14 +720,14 @@ function renderResults() {
 
     // Get all unique databases
     const uniqueDatabases = [...new Set(state.searchResults.map(r => r.database))];
-    
+
     // Show/hide database filters
     if (uniqueDatabases.length > 1) {
         databaseFilters.style.display = "block";
-        
+
         // Render database filter tags
         databaseTags.innerHTML = "";
-        
+
         // Add "All" tag
         const allTag = document.createElement("button");
         allTag.className = `database-tag-filter all ${state.activeDatabaseFilter === null ? 'active' : ''}`;
@@ -789,7 +789,7 @@ function renderResults() {
 
     // Render results list
     resultsListContent.innerHTML = "";
-    
+
     if (filteredResults.length === 0) {
         resultsListContent.innerHTML = `
             <p class="small" style="color: var(--muted); text-align: center; padding: 40px 0;">
@@ -808,7 +808,7 @@ function renderResults() {
         item.setAttribute('role', 'button');
         item.setAttribute('tabindex', '0');
         item.setAttribute('aria-label', `View document: ${result.Title || result.title || 'Untitled'}`);
-        
+
         // Click handler
         const handleClick = (e) => {
             e.preventDefault();
@@ -823,7 +823,7 @@ function renderResults() {
             // Then render the viewer with the selected document
             renderDocumentViewer(selectedResult);
         };
-        
+
         item.addEventListener("click", handleClick);
         // Also support keyboard navigation
         item.addEventListener("keydown", (e) => {
@@ -884,14 +884,20 @@ function renderResults() {
     } else if (!state.activeDocument) {
         renderDocumentViewer(null);
     }
-    
+
     // Reset the flag after rendering
     if (state._skipAutoRender) {
         state._skipAutoRender = false;
     }
 
-    // Show clear results button
+    // Show clear results and download buttons
     clearResultsBtn.style.display = "block";
+    const downloadBtn = document.getElementById("downloadDataBtn");
+    if (downloadBtn) {
+        downloadBtn.style.display = "block";
+        downloadBtn.onclick = () => downloadSearchResults();
+    }
+
     clearResultsBtn.onclick = () => {
         if (confirm("Clear all search results?")) {
             state.searchResults = [];
@@ -951,7 +957,7 @@ function renderDocumentViewer(docData) {
                 }
             }
         }
-        
+
         if (value && value !== 'N/A') {
             const fieldClass = field.isAbstract ? 'abstract' : '';
             html += `
@@ -964,10 +970,10 @@ function renderDocumentViewer(docData) {
     });
 
     // Add any additional fields that might be present
-    const displayedKeys = new Set(['Title', 'title', 'Authors', 'authors', 'Author', 'Publication Year', 'year', 'pubYear', 
-        'Source', '_databaseLabel', 'DOI/PMID', 'DOI_PMID', 'doi', 'pmid', 'Abstract', 'abstract', 'snippet', 
+    const displayedKeys = new Set(['Title', 'title', 'Authors', 'authors', 'Author', 'Publication Year', 'year', 'pubYear',
+        'Source', '_databaseLabel', 'DOI/PMID', 'DOI_PMID', 'doi', 'pmid', 'Abstract', 'abstract', 'snippet',
         '_database', '_databaseLabel', '_index']);
-    
+
     Object.keys(docData).forEach(key => {
         if (!displayedKeys.has(key) && docData[key] && docData[key] !== 'N/A' && typeof docData[key] === 'string') {
             html += `
@@ -990,6 +996,90 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/***************************************************************
+ * Download Search Results as CSV
+ ***************************************************************/
+function downloadSearchResults() {
+    if (state.searchResults.length === 0) {
+        alert("No search results to download.");
+        return;
+    }
+
+    // Flatten all results from all databases
+    let allResults = [];
+    state.searchResults.forEach(dbResult => {
+        dbResult.results.forEach(result => {
+            allResults.push({
+                Source: dbResult.databaseLabel || dbResult.database,
+                Title: result.Title || result.title || 'Untitled',
+                Authors: result.Authors || result.authors || result.Author || result.inventor || 'N/A',
+                'Publication Year': result['Publication Year'] || result.year || result.pubYear || 'N/A',
+                'DOI/PMID': result['DOI/PMID'] || result.DOI_PMID || result.doi || result.pmid || result.patentNumber || 'N/A',
+                Abstract: result.Abstract || result.abstract || result.snippet || 'No abstract available',
+                URL: result.url || result.URL || result.link || ''
+            });
+        });
+    });
+
+    if (allResults.length === 0) {
+        alert("No data to download.");
+        return;
+    }
+
+    // Define CSV headers
+    const headers = ['Source', 'Title', 'Authors', 'Publication Year', 'DOI/PMID', 'Abstract', 'URL'];
+
+    // Convert to CSV format
+    const csvContent = convertToCSV(allResults, headers);
+
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    // Generate filename with date
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const filename = `search_results_${dateStr}_${timeStr}.csv`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showStatus(`✅ Downloaded ${allResults.length} results as CSV`, 5000);
+}
+
+/**
+ * Convert array of objects to CSV string
+ */
+function convertToCSV(data, headers) {
+    const escapeCSV = (value) => {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    };
+
+    // Create header row
+    let csv = headers.map(escapeCSV).join(',') + '\n';
+
+    // Create data rows
+    data.forEach(row => {
+        const values = headers.map(header => escapeCSV(row[header]));
+        csv += values.join(',') + '\n';
+    });
+
+    return csv;
 }
 
 /***************************************************************

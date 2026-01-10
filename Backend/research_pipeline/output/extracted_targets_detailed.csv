@@ -1,0 +1,74 @@
+pmid,type,name,matched_term,source_title
+40827120,target,S1P,sphingosine-1-phosphate,Atopic Dermatitis Management: from Conventional Therapies to Biomarker-Driven Treatment Approaches.
+40827120,target,IL-31,IL-31,Atopic Dermatitis Management: from Conventional Therapies to Biomarker-Driven Treatment Approaches.
+40827120,target,TSLP,thymic stromal lymphopoietin,Atopic Dermatitis Management: from Conventional Therapies to Biomarker-Driven Treatment Approaches.
+40827120,target,OX40,OX40,Atopic Dermatitis Management: from Conventional Therapies to Biomarker-Driven Treatment Approaches.
+40827120,subtarget,IgE,IgE,Atopic Dermatitis Management: from Conventional Therapies to Biomarker-Driven Treatment Approaches.
+40827120,subtarget,CCL17,CCL17,Atopic Dermatitis Management: from Conventional Therapies to Biomarker-Driven Treatment Approaches.
+40827120,subtarget,CCL22,MDC,Atopic Dermatitis Management: from Conventional Therapies to Biomarker-Driven Treatment Approaches.
+40864813,target,S1P,sphingosine-1-phosphate,Targeting Intracellular Pathways in Atopic Dermatitis with Small Molecule Therapeutics.
+40864813,target,PDE4,PDE4,Targeting Intracellular Pathways in Atopic Dermatitis with Small Molecule Therapeutics.
+40864813,target,H4R,histamine H4 receptor,Targeting Intracellular Pathways in Atopic Dermatitis with Small Molecule Therapeutics.
+40864813,target,AhR,aryl hydrocarbon receptor,Targeting Intracellular Pathways in Atopic Dermatitis with Small Molecule Therapeutics.
+40864813,subtarget,STAT6,STAT6,Targeting Intracellular Pathways in Atopic Dermatitis with Small Molecule Therapeutics.
+40693579,target,S1P,sphingosine-1-phosphate,Small EVs From Adipose-Derived MSCs Modulate Epidermal Barrier and Inflammation Via Sphingosine-1-Ph...
+39000023,target,S1P,S1P,"Deciphering the Interplay between the Epithelial Barrier, Immune Cells, and Metabolic Mediators in A..."
+38388871,target,S1P,S1P,Etrasimod: First Approval.
+38724797,target,S1P,sphingosine-1-phosphate,The Future of Atopic Dermatitis Treatment.
+38724797,target,IL-31,interleukin-31,The Future of Atopic Dermatitis Treatment.
+38724797,target,PDE4,phosphodiesterase-4,The Future of Atopic Dermatitis Treatment.
+38724797,target,OX40,OX40,The Future of Atopic Dermatitis Treatment.
+36695074,target,S1P,S1P,"Efficacy and safety of etrasimod, a sphingosine 1-phosphate receptor modulator, in adults with moder..."
+37047680,target,S1P,S1P,"Resveratrol Protects against Skin Inflammation through Inhibition of Mast Cell, Sphingosine Kinase-1..."
+37047680,subtarget,STAT3,STAT3,"Resveratrol Protects against Skin Inflammation through Inhibition of Mast Cell, Sphingosine Kinase-1..."
+37047680,subtarget,NF-κB,NF-κB,"Resveratrol Protects against Skin Inflammation through Inhibition of Mast Cell, Sphingosine Kinase-1..."
+36674974,target,S1P,S1P,Sphingosine 1-Phosphate as Essential Signaling Molecule in Inflammatory Skin Diseases.
+36294465,target,IL-13,IL-13,The Dawn of a New Era in Atopic Dermatitis Treatment.
+36294465,target,IL-31,IL-31,The Dawn of a New Era in Atopic Dermatitis Treatment.
+36294465,target,PDE4,phosphodiesterase 4,The Dawn of a New Era in Atopic Dermatitis Treatment.
+36294465,target,TSLP,thymic stromal lymphopoietin,The Dawn of a New Era in Atopic Dermatitis Treatment.
+36294465,target,OX40,OX40,The Dawn of a New Era in Atopic Dermatitis Treatment.
+36294465,target,AhR,aryl hydrocarbon receptor,The Dawn of a New Era in Atopic Dermatitis Treatment.
+35304160,target,S1P,S1P,Signaling sphingolipids are biomarkers for atopic dermatitis prone to disseminated viral infections.
+34679239,target,S1P,S1P,Novel functions of S1P in chronic itchy and inflammatory skin diseases.
+33764548,target,S1P,sphingosine-1-phosphate,Serum sphingosine-1-phosphate is elevated in atopic dermatitis and associated with severity.
+33197483,target,S1P1,S1PR1,Sphingosine 1-Phosphate Receptor 2 Is Central to Maintaining Epidermal Barrier Homeostasis.
+37885821,target,S1P,S1P,The mast cell/S1P axis is not linked to pre-lesional male skin remodeling in a mouse model of eczema...
+32487782,target,S1P,S1P,"Topical Application of S1P<sub>2</sub> Antagonist JTE-013 Attenuates 2,4-Dinitrochlorobenzene-Induce..."
+32487782,target,IL-4,IL-4,"Topical Application of S1P<sub>2</sub> Antagonist JTE-013 Attenuates 2,4-Dinitrochlorobenzene-Induce..."
+32487782,target,IL-13,IL-13,"Topical Application of S1P<sub>2</sub> Antagonist JTE-013 Attenuates 2,4-Dinitrochlorobenzene-Induce..."
+32487782,subtarget,IgE,IgE,"Topical Application of S1P<sub>2</sub> Antagonist JTE-013 Attenuates 2,4-Dinitrochlorobenzene-Induce..."
+32457418,target,S1P,S1P,"Blockage of sphingosine-1-phosphate receptor 2 attenuates 2,4-dinitrochlorobenzene-induced atopic de..."
+32457418,target,IL-4,IL-4,"Blockage of sphingosine-1-phosphate receptor 2 attenuates 2,4-dinitrochlorobenzene-induced atopic de..."
+32457418,target,IL-13,IL-13,"Blockage of sphingosine-1-phosphate receptor 2 attenuates 2,4-dinitrochlorobenzene-induced atopic de..."
+32457418,subtarget,Th2,Th2,"Blockage of sphingosine-1-phosphate receptor 2 attenuates 2,4-dinitrochlorobenzene-induced atopic de..."
+32457418,subtarget,IgE,IgE,"Blockage of sphingosine-1-phosphate receptor 2 attenuates 2,4-dinitrochlorobenzene-induced atopic de..."
+32457418,subtarget,CCL17,CCL17,"Blockage of sphingosine-1-phosphate receptor 2 attenuates 2,4-dinitrochlorobenzene-induced atopic de..."
+32457418,subtarget,CCL22,CCL22,"Blockage of sphingosine-1-phosphate receptor 2 attenuates 2,4-dinitrochlorobenzene-induced atopic de..."
+32514255,target,S1P1,S1P1,"A novel sphingosylphosphorylcholine and sphingosine-1-phosphate receptor 1 antagonist, KRO-105714, f..."
+32514255,target,S1P,S1P,"A novel sphingosylphosphorylcholine and sphingosine-1-phosphate receptor 1 antagonist, KRO-105714, f..."
+31494188,target,S1P1,S1PR1,Soft drugs for dermatological applications: recent trends.
+31494188,target,S1P,sphingosine-1-phosphate,Soft drugs for dermatological applications: recent trends.
+31494188,target,PDE4,PDE4,Soft drugs for dermatological applications: recent trends.
+31494188,target,TRPV1,TRPV1,Soft drugs for dermatological applications: recent trends.
+31213388,target,S1P,S1P,Long-term Western diet intake leads to dysregulated bile acid signaling and dermatitis with Th2 and ...
+31213388,target,TRPV1,TRPV1,Long-term Western diet intake leads to dysregulated bile acid signaling and dermatitis with Th2 and ...
+31213388,subtarget,Th2,Th2,Long-term Western diet intake leads to dysregulated bile acid signaling and dermatitis with Th2 and ...
+28905998,target,S1P,S1P,Mast cells and sphingosine-1-phosphate underlie prelesional remodeling in a mouse model of eczema.
+26803226,target,S1P1,S1P1,Sphingosine 1-phospate differentially modulates maturation and function of human Langerhans-like cel...
+26803226,target,S1P,S1P,Sphingosine 1-phospate differentially modulates maturation and function of human Langerhans-like cel...
+26786937,target,S1P,S1P,The role of epidermal sphingolipids in dermatologic diseases.
+24434636,target,S1P,S1P,"Sphingosine-1-phosphate differently regulates the cytokine production of IL-12, IL-23 and IL-27 in a..."
+24586752,target,S1P,S1P,Pseudomonas-derived ceramidase induces production of inflammatory mediators from human keratinocytes...
+24586752,subtarget,NF-κB,NF-κB,Pseudomonas-derived ceramidase induces production of inflammatory mediators from human keratinocytes...
+26120515,target,S1P,S1P,Sphingosine-1-phosphate as signaling molecule in the skin: Relevance in atopic dermatitis.
+24244808,target,S1P,S1P,Sphingolipids and antimicrobial peptides: function and roles in atopic dermatitis.
+23563666,target,S1P,sphingosine-1-phosphate,Sphingolipids and inflammatory diseases of the skin.
+23145172,target,S1P,S1P,Sphingosine 1-phosphate modulates antigen capture by murine Langerhans cells via the S1P2 receptor s...
+20811395,target,S1P,sphingosine-1-phosphate,Decreased concentration and enhanced metabolism of sphingosine-1-phosphate in lesional skin of dogs ...
+20802177,target,S1P1,S1P1,FTY720 regulates bone marrow egress of eosinophils and modulates late-phase skin reaction in mice.
+20802177,target,S1P,S1P,FTY720 regulates bone marrow egress of eosinophils and modulates late-phase skin reaction in mice.
+19194476,target,S1P,S1P,Topical application of sphingosine-1-phosphate and FTY720 attenuate allergic contact dermatitis reac...
+19394200,target,S1P,sphingosine-1-phosphate,Gene expression in canine atopic dermatitis and correlation with clinical severity scores.
+18385762,target,S1P,S1P,"K6PC-5, a direct activator of sphingosine kinase 1, promotes epidermal differentiation through intra..."
+18039015,target,S1P,S1P,Sphingosine-1-phosphate signaling and the skin.

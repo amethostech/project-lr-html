@@ -24,7 +24,8 @@
             <h2>Search Results</h2>
             <!-- Database Filter Tags -->
             <div id="databaseFilters" style="display: none;">
-              <label style="margin-bottom: 8px; display: block; font-size: 13px; color: var(--muted);">Filter by Database:</label>
+              <label style="margin-bottom: 8px; display: block; font-size: 13px; color: var(--muted);">Filter by
+                Database:</label>
               <div id="databaseTags" class="chips"></div>
             </div>
           </div>
@@ -34,7 +35,11 @@
             <div id="resultsList" class="results-list">
               <div id="resultsListHeader" class="results-list-header">
                 <span id="resultsCount" class="results-count"></span>
-                <button id="clearResultsBtn" class="btn-ghost btn-small" style="display: none;">Clear Results</button>
+                <div class="results-actions" style="display: flex; gap: 8px;">
+                  <button id="downloadDataBtn" class="btn-primary btn-small" style="display: none;">⬇ Download
+                    Data</button>
+                  <button id="clearResultsBtn" class="btn-ghost btn-small" style="display: none;">Clear Results</button>
+                </div>
               </div>
               <div id="resultsListContent" class="results-list-content">
                 <p class="empty-state">
@@ -71,7 +76,7 @@
         <form id="searchForm" class="search-form" onsubmit="return false;">
           <div class="form-section">
             <h3 class="form-section-title">Search Parameters</h3>
-            
+
             <div class="form-field">
               <label>Keywords (up to 5) <span class="small">— add/remove as needed</span></label>
               <div id="keywordsContainer" class="keywords"></div>
@@ -101,7 +106,8 @@
 
             <div class="form-field">
               <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="newsArticles" style="margin-right:8px; transform: translateY(1px) scale(1.05);" />
+                <input type="checkbox" id="newsArticles"
+                  style="margin-right:8px; transform: translateY(1px) scale(1.05);" />
                 News Articles (from curated news feed)
               </label>
             </div>
@@ -138,7 +144,7 @@
   </div>
 
   <div id="modalRoot" style="display:none"></div>
-  <script type="module"  src="/js/main.js"></script>
+  <script type="module" src="/js/main.js"></script>
 </body>
 
 </html>
