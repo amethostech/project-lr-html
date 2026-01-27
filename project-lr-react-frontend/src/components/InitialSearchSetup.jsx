@@ -3,7 +3,7 @@ import { Plus, X, Search, AlertCircle, Database, FileText, Activity } from 'luci
 
 const MAX_KEYWORDS = 5;
 
-function InitialSearchSetup() {
+function InitialSearchSetup({ onSearch }) {
     // State for keywords
     const [keywords, setKeywords] = useState([]);
     const [keywordInput, setKeywordInput] = useState('');
@@ -92,9 +92,9 @@ function InitialSearchSetup() {
             databases
         };
 
-        console.log('Search Parameters:', searchParams);
-        setSubmitError('');
-        // Here you would typically navigate to the next screen or trigger API calls
+        if (onSearch) {
+            onSearch(searchParams);
+        }
     };
 
     return (
