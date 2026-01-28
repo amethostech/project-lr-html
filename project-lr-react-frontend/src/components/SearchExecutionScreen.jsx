@@ -1,22 +1,29 @@
 import { useState, useEffect } from 'react';
 import { Loader2, CheckCircle, Database, FileText, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useSearch } from '../context/SearchContext';
 
-function SearchExecutionScreen({
-    searchParams = {
-        keywords: [],
-        dateRange: { start: '', end: '' },
-        databases: { USPTO: true, PubMed: true, ClinicalTrials: true }
-    },
-    onComplete
-}) {
+function SearchExecutionScreen() {
+    const navigate = useNavigate();
+    const { searchParams } = useSearch();
     const [progress, setProgress] = useState(0);
+
+    // Guard clause: if no params (direct access), redirect to home
+    useEffect(() => {
+        if (!searchParams || searchParams.keywords.length === 0) {
+            navigate('/');
+        }
+    }, [searchParams, navigate]);
+
     const [statuses, setStatuses] = useState({
-        USPTO: 'pending', // pending, searching, completed
+        USPTO: 'pending',
         PubMed: 'pending',
         ClinicalTrials: 'pending'
     });
 
     useEffect(() => {
+        if (!searchParams) return;
+
         // Total duration for the simulation
         const TOTAL_DURATION = 3000;
         const INTERVAL = 50;
@@ -59,13 +66,15 @@ function SearchExecutionScreen({
             if (currentStep >= steps) {
                 clearInterval(timer);
                 setTimeout(() => {
-                    if (onComplete) onComplete();
+                    navigate('/patents');
                 }, 500); // Small delay before transition
             }
         }, INTERVAL);
 
         return () => clearInterval(timer);
-    }, [searchParams, onComplete]);
+    }, [searchParams, navigate]);
+
+    if (!searchParams) return null; // or loading spinner
 
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

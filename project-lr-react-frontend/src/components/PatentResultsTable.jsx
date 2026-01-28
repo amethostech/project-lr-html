@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Check, ArrowRight, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useSearch } from '../context/SearchContext';
 
 // Mock Data Generation
 const MOCK_PATENTS = [
@@ -45,7 +47,10 @@ const MOCK_PATENTS = [
     }
 ];
 
-function PatentResultsTable({ onExtractKeywords }) {
+function PatentResultsTable() {
+    const navigate = useNavigate();
+    const { setSelectedPatents: setContextSelectedPatents } = useSearch();
+
     const [selectedPatents, setSelectedPatents] = useState(new Set());
     const [expandedAbstracts, setExpandedAbstracts] = useState(new Set());
 
@@ -82,6 +87,11 @@ function PatentResultsTable({ onExtractKeywords }) {
 
     const selectedCount = selectedPatents.size;
     const isAllSelected = MOCK_PATENTS.length > 0 && selectedCount === MOCK_PATENTS.length;
+
+    const handleExtract = () => {
+        setContextSelectedPatents(selectedPatents);
+        navigate('/refinement');
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 flex flex-col">
@@ -195,7 +205,7 @@ function PatentResultsTable({ onExtractKeywords }) {
                         </div>
 
                         <button
-                            onClick={() => onExtractKeywords && onExtractKeywords(Array.from(selectedPatents))}
+                            onClick={handleExtract}
                             disabled={selectedCount === 0}
                             className="px-6 py-3 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center gap-2"
                         >

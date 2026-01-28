@@ -1,9 +1,12 @@
+
 import InitialSearchSetup from '../components/InitialSearchSetup';
 import SearchExecutionScreen from '../components/SearchExecutionScreen';
 import PatentResultsTable from '../components/PatentResultsTable';
+import KeywordRefinementScreen from '../components/KeywordRefinementScreen';
 import { useState } from 'react';
+
 function HomePage() {
-    const [currentScreen, setCurrentScreen] = useState('setup'); // setup, execution, results
+    const [currentScreen, setCurrentScreen] = useState('setup'); // setup, execution, results, refinement
     const [searchParams, setSearchParams] = useState(null);
 
     const handleStartSearch = (params) => {
@@ -14,6 +17,11 @@ function HomePage() {
     const handleSearchComplete = () => {
         console.log('Search completed! Moving to results...');
         setCurrentScreen('results');
+    };
+
+    const handleRefinementProceed = (finalKeywords) => {
+        console.log('Final Keywords for Literature Search:', finalKeywords);
+        // Future: Navigate to Literature Search Results
     };
 
     return (
@@ -33,8 +41,16 @@ function HomePage() {
                 <PatentResultsTable
                     onExtractKeywords={(selectedIds) => {
                         console.log('Extracting keywords for:', selectedIds);
-                        // Future: Navigate to Keyword Extraction Screen
+                        // Simulate extraction logic - move to refinement
+                        setCurrentScreen('refinement');
                     }}
+                />
+            )}
+
+            {currentScreen === 'refinement' && (
+                <KeywordRefinementScreen
+                    originalKeywords={searchParams?.keywords || []}
+                    onProceed={handleRefinementProceed}
                 />
             )}
         </main>

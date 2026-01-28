@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { Plus, X, Search, AlertCircle, Database, FileText, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useSearch } from '../context/SearchContext';
 
 const MAX_KEYWORDS = 5;
 
-function InitialSearchSetup({ onSearch }) {
+function InitialSearchSetup() {
+    const navigate = useNavigate();
+    const { setSearchParams } = useSearch();
+
     // State for keywords
     const [keywords, setKeywords] = useState([]);
     const [keywordInput, setKeywordInput] = useState('');
@@ -34,7 +39,7 @@ function InitialSearchSetup({ onSearch }) {
         }
 
         if (keywords.length >= MAX_KEYWORDS) {
-            setKeywordError(`Maximum of ${MAX_KEYWORDS} keywords allowed. Remove one to add another.`);
+            setKeywordError(`Maximum of ${MAX_KEYWORDS} keywords allowed.`);
             return;
         }
 
@@ -51,10 +56,7 @@ function InitialSearchSetup({ onSearch }) {
 
     // Handle Enter key press for adding keywords
     const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleAddKeyword();
-        }
+        if (e.key === 'Enter') { e.preventDefault(); handleAddKeyword(); }
     };
 
     // Handle removing a keyword
@@ -86,15 +88,14 @@ function InitialSearchSetup({ onSearch }) {
             return;
         }
 
-        const searchParams = {
+        const params = {
             keywords,
             dateRange,
             databases
         };
 
-        if (onSearch) {
-            onSearch(searchParams);
-        }
+        setSearchParams(params); // Save to context
+        navigate('/search'); // Navigate to next screen
     };
 
     return (
