@@ -27,7 +27,7 @@ const allowedOrigins = [
     'http://127.0.0.1:3000',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'https://project-lr-html.vercel.app/index.html',
+    'https://project-lr-html.vercel.app',
     'https://project-lr-one.vercel.app',
     'https://project-lr-frontend.onrender.com'
 ];
