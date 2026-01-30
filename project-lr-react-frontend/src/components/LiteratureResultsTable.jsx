@@ -2,90 +2,50 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp, BookOpen, FileText, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSearch } from '../context/SearchContext';
-// Mock Data for Literature
-const MOCK_PAPERS = [
-    {
-        pmid: "34567890",
-        title: "Efficacy and safety of xanomeline-trospium chloride in schizophrenia: a randomized, double-blind, placebo-controlled trial",
-        authors: "Inder Kaul, Sharon Sawchak, Cristanfarmer",
-        journal: "The Lancet",
-        year: "2024",
-        abstract: "In this phase 3 trial, xanomeline-trospium chloride demonstrated significant improvements in PANSS total scores compared with placebo. The combination was generally well tolerated, with cholinergic adverse events being mild to moderate."
-    },
-    {
-        pmid: "33445566",
-        title: "Muscarinic M1 and M4 receptors as drug targets for psychiatric disorders",
-        authors: "Christian C. Felder, Michael D. Ehlert",
-        journal: "Nature Reviews Drug Discovery",
-        year: "2023",
-        abstract: "This review discusses the potential of targeting M1 and M4 muscarinic acetylcholine receptors for treating schizophrenia and Alzheimer's disease, highlighting recent clinical progress with allosteric modulators."
-    },
-    {
-        pmid: "32109876",
-        title: "Mechanism of action of xanomeline and its clinical implications",
-        authors: "Alan Breier, Steve Paul",
-        journal: "American Journal of Psychiatry",
-        year: "2022",
-        abstract: "Xanomeline is a dual M1/M4 agonist that avoids striatal dopamine blockade. This paper explores its unique mechanism and how it differs from current antipsychotics."
-    },
-    {
-        pmid: "31001122",
-        title: "Peripheral muscarinic antagonism resolves gastrointestinal side effects of central muscarinic agonists",
-        authors: "Robert Langer, Giovanni Traverso",
-        journal: "Gastroenterology",
-        year: "2021",
-        abstract: "We report that the peripheral antagonist trospium chloride effectively mitigates the gastrointestinal side effects of xanomeline without crossing the blood-brain barrier, maintaining central therapeutic efficacy."
-    },
-    {
-        pmid: "30554433",
-        title: "Cognitive enhancement in schizophrenia with M1 positive allosteric modulators",
-        authors: "Jeffrey Conn, Craig Lindsley",
-        journal: "Neuropsychopharmacology",
-        year: "2020",
-        abstract: "Positive allosteric modulators (PAMs) of the M1 receptor show promise for treating cognitive deficits in schizophrenia. Preclinical data suggests improved safety margins compared to orthosteric agonists."
-    }
-];
 
 function LiteratureResultsTable() {
     const navigate = useNavigate();
-    const { setSelectedPapers: setSelectedContextPapers } = useSearch();
+    const { literatureResults, setSelectedPapers: setSelectedContextPapers } = useSearch();
 
     const [selectedPapers, setSelectedPapers] = useState(new Set());
     const [expandedAbstracts, setExpandedAbstracts] = useState(new Set());
 
+    // Use literatureResults from context, ensure it's an array
+    const displayPapers = Array.isArray(literatureResults) ? literatureResults : [];
+
     // Handle Select All
     const handleSelectAll = (e) => {
         if (e.target.checked) {
-            setSelectedPapers(new Set(MOCK_PAPERS.map(p => p.pmid)));
+            setSelectedPapers(new Set(displayPapers.map(p => p.id || p.pmid)));
         } else {
             setSelectedPapers(new Set());
         }
     };
 
     // Handle Single Row Selection
-    const handleSelectRow = (pmid) => {
+    const handleSelectRow = (paperId) => {
         const newSelected = new Set(selectedPapers);
-        if (newSelected.has(pmid)) {
-            newSelected.delete(pmid);
+        if (newSelected.has(paperId)) {
+            newSelected.delete(paperId);
         } else {
-            newSelected.add(pmid);
+            newSelected.add(paperId);
         }
         setSelectedPapers(newSelected);
     };
 
     // Toggle Abstract View
-    const toggleAbstract = (pmid) => {
+    const toggleAbstract = (paperId) => {
         const newExpanded = new Set(expandedAbstracts);
-        if (newExpanded.has(pmid)) {
-            newExpanded.delete(pmid);
+        if (newExpanded.has(paperId)) {
+            newExpanded.delete(paperId);
         } else {
-            newExpanded.add(pmid);
+            newExpanded.add(paperId);
         }
         setExpandedAbstracts(newExpanded);
     };
 
     const selectedCount = selectedPapers.size;
-    const isAllSelected = MOCK_PAPERS.length > 0 && selectedCount === MOCK_PAPERS.length;
+    const isAllSelected = displayPapers.length > 0 && selectedCount === displayPapers.length;
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 flex flex-col">
@@ -132,60 +92,76 @@ function LiteratureResultsTable() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {MOCK_PAPERS.map((paper) => {
-                                    const isSelected = selectedPapers.has(paper.pmid);
-                                    const isExpanded = expandedAbstracts.has(paper.pmid);
+                                {displayPapers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="7" className="p-8 text-center text-gray-500">
+                                            No results found. Try selecting PubMed or Clinical Trials databases and searching again.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    displayPapers.map((paper) => {
+                                        // Handle both PubMed and Clinical Trials field names
+                                        const paperId = paper.id || paper.pmid || paper.nctId || '';
+                                        const title = paper.title || paper.briefTitle || 'No Title';
+                                        const authors = paper.authors || paper.sponsor || '';
+                                        const source = paper.source || 'Unknown';
+                                        const year = paper.year || (paper.date ? paper.date.substring(0, 4) : '');
+                                        const abstract = paper.abstract || paper.status || 'No abstract available';
 
-                                    return (
-                                        <tr
-                                            key={paper.pmid}
-                                            className={`group transition-colors ${isSelected ? 'bg-teal-50/50' : 'hover:bg-gray-50'}`}
-                                        >
-                                            <td className="p-4 align-top">
-                                                <div className="flex items-center justify-center pt-1">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={() => handleSelectRow(paper.pmid)}
-                                                        className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-600 focus:ring-offset-0 cursor-pointer"
-                                                    />
-                                                </div>
-                                            </td>
-                                            <td className="p-4 align-top">
-                                                <span className="font-mono text-sm font-medium text-teal-700 bg-teal-50 px-2 py-1 rounded">
-                                                    {paper.pmid}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 align-top">
-                                                <div className="font-semibold text-gray-900 text-sm mb-1 leading-snug">{paper.title}</div>
-                                            </td>
-                                            <td className="p-4 align-top text-sm text-gray-600">
-                                                {paper.authors}
-                                            </td>
-                                            <td className="p-4 align-top text-sm text-gray-700 italic">
-                                                {paper.journal}
-                                            </td>
-                                            <td className="p-4 align-top text-sm text-gray-600 font-medium">
-                                                {paper.year}
-                                            </td>
-                                            <td className="p-4 align-top text-sm text-gray-600">
-                                                <div className={`relative ${!isExpanded ? 'line-clamp-2' : ''}`}>
-                                                    {paper.abstract}
-                                                </div>
-                                                <button
-                                                    onClick={() => toggleAbstract(paper.pmid)}
-                                                    className="text-xs font-medium text-teal-600 hover:text-teal-800 mt-1 flex items-center gap-1 focus:outline-none"
-                                                >
-                                                    {isExpanded ? (
-                                                        <>Show Less <ChevronUp className="w-3 h-3" /></>
-                                                    ) : (
-                                                        <>View Abstract <ChevronDown className="w-3 h-3" /></>
-                                                    )}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                        const isSelected = selectedPapers.has(paperId);
+                                        const isExpanded = expandedAbstracts.has(paperId);
+
+                                        return (
+                                            <tr
+                                                key={paperId}
+                                                className={`group transition-colors ${isSelected ? 'bg-teal-50/50' : 'hover:bg-gray-50'}`}
+                                            >
+                                                <td className="p-4 align-top">
+                                                    <div className="flex items-center justify-center pt-1">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => handleSelectRow(paperId)}
+                                                            className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-600 focus:ring-offset-0 cursor-pointer"
+                                                        />
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 align-top">
+                                                    <span className="font-mono text-sm font-medium text-teal-700 bg-teal-50 px-2 py-1 rounded">
+                                                        {paperId}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 align-top">
+                                                    <div className="font-semibold text-gray-900 text-sm mb-1 leading-snug">{title}</div>
+                                                </td>
+                                                <td className="p-4 align-top text-sm text-gray-600">
+                                                    {authors}
+                                                </td>
+                                                <td className="p-4 align-top text-sm text-gray-700 italic">
+                                                    {source}
+                                                </td>
+                                                <td className="p-4 align-top text-sm text-gray-600 font-medium">
+                                                    {year}
+                                                </td>
+                                                <td className="p-4 align-top text-sm text-gray-600">
+                                                    <div className={`relative ${!isExpanded ? 'line-clamp-2' : ''}`}>
+                                                        {abstract}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => toggleAbstract(paperId)}
+                                                        className="text-xs font-medium text-teal-600 hover:text-teal-800 mt-1 flex items-center gap-1 focus:outline-none"
+                                                    >
+                                                        {isExpanded ? (
+                                                            <>Show Less <ChevronUp className="w-3 h-3" /></>
+                                                        ) : (
+                                                            <>View More <ChevronDown className="w-3 h-3" /></>
+                                                        )}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
                             </tbody>
                         </table>
                     </div>

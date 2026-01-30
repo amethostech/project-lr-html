@@ -6,6 +6,7 @@ import PatentResultsTable from './components/PatentResultsTable';
 import KeywordRefinementScreen from './components/KeywordRefinementScreen';
 import LiteratureResultsTable from './components/LiteratureResultsTable';
 import FinalReportScreen from './components/FinalReportScreen';
+import UnifiedResultsPage from './components/UnifiedResultsPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Routes>
           <Route path="/" element={<InitialSearchSetup />} />
           <Route path="/search" element={<SearchExecutionScreen />} />
+          <Route path="/results" element={<UnifiedResultsPage />} />
           <Route path="/patents" element={<PatentResultsTable />} />
           <Route path="/refinement" element={<KeywordRefinementScreen />} />
           <Route path="/literature" element={<LiteratureResultsTable />} />

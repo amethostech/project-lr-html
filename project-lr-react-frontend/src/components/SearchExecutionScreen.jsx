@@ -66,7 +66,8 @@ function SearchExecutionScreen() {
             if (currentStep >= steps) {
                 clearInterval(timer);
                 setTimeout(() => {
-                    navigate('/patents');
+                    // Navigate to unified results page
+                    navigate('/results');
                 }, 500); // Small delay before transition
             }
         }, INTERVAL);

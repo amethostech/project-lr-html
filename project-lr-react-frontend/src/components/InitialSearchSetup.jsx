@@ -98,15 +98,14 @@ function InitialSearchSetup() {
             databases
         };
 
-        setSearchParams(params); // Save to context
+        setSearchParams(params);
 
         try {
-            // Construct query string from keywords
             const query = keywords.join(', ');
-
+            const NODE_BACKEND = import.meta.env.VITE_NODE_BACKEND_URL || 'http://localhost:3000';
+            const PYTHON_BACKEND = import.meta.env.VITE_PYTHON_BACKEND_URL || 'http://localhost:8000';
             console.log("Submitting Search:", { keywords, dateRange, databases });
 
-            // Call USPTO API if selected
             if (databases.USPTO) {
                 const payload = {
                     api_name: 'USPTO',
@@ -118,7 +117,7 @@ function InitialSearchSetup() {
                 };
                 console.log("Sending USPTO Payload:", payload);
 
-                const response = await fetch('http://localhost:8000/api/search', {
+                const response = await fetch(`${PYTHON_BACKEND}/api/search`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -132,18 +131,16 @@ function InitialSearchSetup() {
                 setPatentResults(data.results || []);
             }
 
-            // Call PubMed API if selected
             if (databases.PubMed) {
-                const response = await fetch('http://localhost:8000/api/search', {
+                console.log("Sending PubMed request...");
+                const response = await fetch(`${NODE_BACKEND}/api/pubmed-public/search`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        api_name: 'PubMed',
                         query: query,
-                        params: {
-                            dateFrom: dateRange.start,
-                            dateTo: dateRange.end
-                        }
+                        from: dateRange.start,
+                        to: dateRange.end,
+                        maxResults: 100
                     })
                 });
 
@@ -151,12 +148,32 @@ function InitialSearchSetup() {
                     console.warn(`PubMed Search failed: ${response.statusText}`);
                 } else {
                     const data = await response.json();
-                    // Append or set results? For now, we set literatureResults independently
-                    setLiteratureResults(data.results || []);
+                    console.log("PubMed results:", data.count);
+                    setLiteratureResults(prev => [...(Array.isArray(prev) ? prev : []), ...(data.results || [])]);
                 }
             }
 
-            navigate('/search'); // Navigate to next screen (SearchExecutionScreen will act as a transition)
+            if (databases.ClinicalTrials) {
+                console.log("Sending Clinical Trials request...");
+                const response = await fetch(`${NODE_BACKEND}/api/clinical/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        maxResults: 100
+                    })
+                });
+
+                if (!response.ok) {
+                    console.warn(`Clinical Trials Search failed: ${response.statusText}`);
+                } else {
+                    const data = await response.json();
+                    console.log("Clinical Trials results:", data.count);
+                    setLiteratureResults(prev => [...(Array.isArray(prev) ? prev : []), ...(data.results || [])]);
+                }
+            }
+
+            navigate('/search');
 
         } catch (error) {
             console.error("Search failed:", error);
