@@ -12,6 +12,10 @@ export function SearchProvider({ children }) {
     const [selectedPatents, setSelectedPatents] = useState(new Set());
     const [refinedKeywords, setRefinedKeywords] = useState([]);
 
+    // Results state
+    const [patentResults, setPatentResults] = useState([]);
+    const [literatureResults, setLiteratureResults] = useState([]);
+
     // Future state for literature
     const [selectedPapers, setSelectedPapers] = useState(new Set());
 
@@ -22,6 +26,10 @@ export function SearchProvider({ children }) {
         setSelectedPatents,
         refinedKeywords,
         setRefinedKeywords,
+        patentResults,
+        setPatentResults,
+        literatureResults,
+        setLiteratureResults,
         selectedPapers,
         setSelectedPapers
     };

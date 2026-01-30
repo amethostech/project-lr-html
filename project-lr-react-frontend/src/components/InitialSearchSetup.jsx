@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Search, AlertCircle, Database, FileText, Activity } from 'lucide-react';
+import { Plus, X, Search, AlertCircle, Database, FileText, Activity, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSearch } from '../context/SearchContext';
 
@@ -7,7 +7,8 @@ const MAX_KEYWORDS = 5;
 
 function InitialSearchSetup() {
     const navigate = useNavigate();
-    const { setSearchParams } = useSearch();
+    const { setSearchParams, setPatentResults, setLiteratureResults } = useSearch();
+    const [isLoading, setIsLoading] = useState(false);
 
     // State for keywords
     const [keywords, setKeywords] = useState([]);
@@ -82,11 +83,14 @@ function InitialSearchSetup() {
     };
 
     // Handle form submission
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (keywords.length === 0) {
             setSubmitError('Please add at least one keyword to proceed.');
             return;
         }
+
+        setIsLoading(true);
+        setSubmitError('');
 
         const params = {
             keywords,
@@ -95,7 +99,71 @@ function InitialSearchSetup() {
         };
 
         setSearchParams(params); // Save to context
-        navigate('/search'); // Navigate to next screen
+
+        try {
+            // Construct query string from keywords
+            const query = keywords.join(', ');
+
+            console.log("Submitting Search:", { keywords, dateRange, databases });
+
+            // Call USPTO API if selected
+            if (databases.USPTO) {
+                const payload = {
+                    api_name: 'USPTO',
+                    query: query,
+                    params: {
+                        start_year: dateRange.start,
+                        end_year: dateRange.end
+                    }
+                };
+                console.log("Sending USPTO Payload:", payload);
+
+                const response = await fetch('http://localhost:8000/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`USPTO Search failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                setPatentResults(data.results || []);
+            }
+
+            // Call PubMed API if selected
+            if (databases.PubMed) {
+                const response = await fetch('http://localhost:8000/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_name: 'PubMed',
+                        query: query,
+                        params: {
+                            dateFrom: dateRange.start,
+                            dateTo: dateRange.end
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    console.warn(`PubMed Search failed: ${response.statusText}`);
+                } else {
+                    const data = await response.json();
+                    // Append or set results? For now, we set literatureResults independently
+                    setLiteratureResults(data.results || []);
+                }
+            }
+
+            navigate('/search'); // Navigate to next screen (SearchExecutionScreen will act as a transition)
+
+        } catch (error) {
+            console.error("Search failed:", error);
+            setSubmitError(`Search failed: ${error.message}. Is the backend running?`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -270,10 +338,20 @@ function InitialSearchSetup() {
                 {/* Footer/Action */}
                 <button
                     onClick={handleSubmit}
-                    className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                    disabled={isLoading}
+                    className="w-full py-4 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-700 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
                 >
-                    <Search className="w-5 h-5" />
-                    Proceed to Search
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Searching Databases...
+                        </>
+                    ) : (
+                        <>
+                            <Search className="w-5 h-5" />
+                            Proceed to Search
+                        </>
+                    )}
                 </button>
             </div>
         </div>

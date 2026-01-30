@@ -1,0 +1,72 @@
+[
+  {
+    "geneId": "ENSG00000006071",
+    "symbol": "ABCC8",
+    "name": "ATP binding cassette subfamily C member 8",
+    "score": 0.8647079790619268,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000187486",
+    "symbol": "KCNJ11",
+    "name": "potassium inwardly rectifying channel subfamily J member 11",
+    "score": 0.8646999017635065,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000106633",
+    "symbol": "GCK",
+    "name": "glucokinase",
+    "score": 0.8612793575151033,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000132170",
+    "symbol": "PPARG",
+    "name": "peroxisome proliferator activated receptor gamma",
+    "score": 0.8461675539686361,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000171105",
+    "symbol": "INSR",
+    "name": "insulin receptor",
+    "score": 0.7860190018728052,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000135100",
+    "symbol": "HNF1A",
+    "name": "HNF1 homeobox A",
+    "score": 0.783894282994603,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000275410",
+    "symbol": "HNF1B",
+    "name": "HNF1 homeobox B",
+    "score": 0.7821836356330684,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000109501",
+    "symbol": "WFS1",
+    "name": "wolframin ER transmembrane glycoprotein",
+    "score": 0.7697004692786897,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000101076",
+    "symbol": "HNF4A",
+    "name": "hepatocyte nuclear factor 4 alpha",
+    "score": 0.7678167594089692,
+    "diseaseId": "MONDO_0005148"
+  },
+  {
+    "geneId": "ENSG00000112164",
+    "symbol": "GLP1R",
+    "name": "glucagon like peptide 1 receptor",
+    "score": 0.7606982517715771,
+    "diseaseId": "MONDO_0005148"
+  }
+]

@@ -1,0 +1,16 @@
+associatedGene,name,species,stId
+ABCC8,"Defective <span class=""highlighting"" >ABCC8</span> can cause hypo- and hyper-glycemias",['Homo sapiens'],R-HSA-5683177
+KCNJ11,"Defective ABCC9 causes CMD10, ATFB12 and Cantu syndrome",['Homo sapiens'],R-HSA-5678420
+GCK,"Defective <span class=""highlighting"" >GCK</span> causes maturity-onset diabetes of the young 2 (MODY2)",['Homo sapiens'],R-HSA-5619073
+GCK,Defective HK1 causes hexokinase deficiency (HK deficiency),['Homo sapiens'],R-HSA-5619056
+GCK,"FOXO-mediated transcription of oxidative stress, metabolic and neuronal genes",['Homo sapiens'],R-HSA-9615017
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Homo sapiens'],R-HSA-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Mus musculus'],R-MMU-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Rattus norvegicus'],R-RNO-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Canis familiaris'],R-CFA-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Bos taurus'],R-BTA-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Sus scrofa'],R-SSC-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Danio rerio'],R-DRE-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Gallus gallus'],R-GGA-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Drosophila melanogaster'],R-DME-9841922
+PPARG,"MLL4 and MLL3 complexes regulate expression of <span class=""highlighting"" >PPARG</span> target genes in adipogenesis and hepatic steatosis",['Caenorhabditis elegans'],R-CEL-9841922

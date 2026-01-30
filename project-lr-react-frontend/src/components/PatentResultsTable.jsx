@@ -49,15 +49,24 @@ const MOCK_PATENTS = [
 
 function PatentResultsTable() {
     const navigate = useNavigate();
-    const { setSelectedPatents: setContextSelectedPatents } = useSearch();
+    const {
+        patentResults,
+        setSelectedPatents: setContextSelectedPatents
+    } = useSearch();
 
     const [selectedPatents, setSelectedPatents] = useState(new Set());
     const [expandedAbstracts, setExpandedAbstracts] = useState(new Set());
 
+    // Use patentResults if available, otherwise fall back to empty array
+    // Note: We might want to keep MOCK_PATENTS for dev/demo if api returns nothing? 
+    // For now, let's strictly use the API results or show empty if none.
+    // Ensure it is always an array to avoid map errors
+    const displayPatents = Array.isArray(patentResults) ? patentResults : [];
+
     // Handle Select All
     const handleSelectAll = (e) => {
         if (e.target.checked) {
-            setSelectedPatents(new Set(MOCK_PATENTS.map(p => p.patentId)));
+            setSelectedPatents(new Set(displayPatents.map(p => p.patentId || p.publication_number)));
         } else {
             setSelectedPatents(new Set());
         }
@@ -86,7 +95,7 @@ function PatentResultsTable() {
     };
 
     const selectedCount = selectedPatents.size;
-    const isAllSelected = MOCK_PATENTS.length > 0 && selectedCount === MOCK_PATENTS.length;
+    const isAllSelected = displayPatents.length > 0 && selectedCount === displayPatents.length;
 
     const handleExtract = () => {
         setContextSelectedPatents(selectedPatents);
@@ -102,7 +111,7 @@ function PatentResultsTable() {
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Search Results</h1>
                         <p className="text-gray-500 text-sm mt-1">
-                            Found {MOCK_PATENTS.length} relevant patents. Select patents to extract keywords.
+                            Found {displayPatents.length} relevant patents. Select patents to extract keywords.
                         </p>
                     </div>
                     <div className="bg-white px-4 py-2 border border-gray-200 rounded-lg shadow-sm text-sm text-gray-600">
@@ -134,65 +143,89 @@ function PatentResultsTable() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {MOCK_PATENTS.map((patent) => {
-                                    const isSelected = selectedPatents.has(patent.patentId);
-                                    const isExpanded = expandedAbstracts.has(patent.patentId);
+                                {displayPatents.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" className="p-8 text-center text-gray-500">
+                                            No results found. Try adjusting your search keywords.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    displayPatents.map((patent) => {
+                                        // PatentsView API field mappings
+                                        const patentId = patent.patent_id || patent.id || "N/A";
+                                        const title = patent.title || "No Title";
+                                        const abstract = patent.abstract || "No abstract available.";
 
-                                    return (
-                                        <tr
-                                            key={patent.patentId}
-                                            className={`group transition-colors ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
-                                        >
-                                            <td className="p-4 align-top">
-                                                <div className="flex items-center justify-center pt-1">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={() => handleSelectRow(patent.patentId)}
-                                                        className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 focus:ring-offset-0 cursor-pointer"
-                                                    />
-                                                </div>
-                                            </td>
-                                            <td className="p-4 align-top">
-                                                <span className="font-mono text-sm font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                                                    {patent.patentId}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 align-top">
-                                                <div className="font-semibold text-gray-900 text-sm mb-1">{patent.title}</div>
-                                                <div className="text-xs text-gray-500">
-                                                    {Array.isArray(patent.inventors) ? patent.inventors.join(", ") : patent.inventors}
-                                                </div>
-                                            </td>
-                                            <td className="p-4 align-top text-sm text-gray-700">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                                                        {patent.assignee.charAt(0)}
+                                        // Assignee handling
+                                        let assignee = patent.assignee || "Unknown Assignee";
+                                        if (typeof assignee !== 'string') assignee = String(assignee);
+
+                                        // Year (already extracted by backend, or fallback to date)
+                                        const year = patent.year ||
+                                            (patent.date ? String(patent.date).substring(0, 4) : "N/A");
+
+                                        // Inventors array
+                                        const inventors = Array.isArray(patent.inventors) ? patent.inventors : [];
+
+                                        const isSelected = selectedPatents.has(patentId);
+                                        const isExpanded = expandedAbstracts.has(patentId);
+
+                                        return (
+                                            <tr
+                                                key={patentId}
+                                                className={`group transition-colors ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
+                                            >
+                                                <td className="p-4 align-top">
+                                                    <div className="flex items-center justify-center pt-1">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => handleSelectRow(patentId)}
+                                                            className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 focus:ring-offset-0 cursor-pointer"
+                                                        />
                                                     </div>
-                                                    {patent.assignee}
-                                                </div>
-                                            </td>
-                                            <td className="p-4 align-top text-sm text-gray-600 font-medium">
-                                                {patent.year}
-                                            </td>
-                                            <td className="p-4 align-top text-sm text-gray-600">
-                                                <div className={`relative ${!isExpanded ? 'line-clamp-2' : ''}`}>
-                                                    {patent.abstract}
-                                                </div>
-                                                <button
-                                                    onClick={() => toggleAbstract(patent.patentId)}
-                                                    className="text-xs font-medium text-gray-500 hover:text-gray-900 mt-1 flex items-center gap-1 focus:outline-none"
-                                                >
-                                                    {isExpanded ? (
-                                                        <>Show Less <ChevronUp className="w-3 h-3" /></>
-                                                    ) : (
-                                                        <>Read More <ChevronDown className="w-3 h-3" /></>
-                                                    )}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                                </td>
+                                                <td className="p-4 align-top">
+                                                    <span className="font-mono text-sm font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                                                        {patentId}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 align-top">
+                                                    <div className="font-semibold text-gray-900 text-sm mb-1">{title}</div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {Array.isArray(inventors) ? inventors.join(", ") : inventors}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 align-top text-sm text-gray-700">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 uppercase">
+                                                            {assignee.charAt(0)}
+                                                        </div>
+                                                        {assignee}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 align-top text-sm text-gray-600 font-medium">
+                                                    {year}
+                                                </td>
+                                                <td className="p-4 align-top text-sm text-gray-600">
+                                                    <div className={`relative ${!isExpanded ? 'line-clamp-2' : ''}`}>
+                                                        {abstract}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => toggleAbstract(patentId)}
+                                                        className="text-xs font-medium text-gray-500 hover:text-gray-900 mt-1 flex items-center gap-1 focus:outline-none"
+                                                    >
+                                                        {isExpanded ? (
+                                                            <>Show Less <ChevronUp className="w-3 h-3" /></>
+                                                        ) : (
+                                                            <>Read More <ChevronDown className="w-3 h-3" /></>
+                                                        )}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
                             </tbody>
                         </table>
                     </div>
