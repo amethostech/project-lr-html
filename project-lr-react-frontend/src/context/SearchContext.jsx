@@ -5,33 +5,42 @@ const SearchContext = createContext();
 export function SearchProvider({ children }) {
     const [searchParams, setSearchParams] = useState({
         keywords: [],
-        dateRange: { start: '', end: '' },
-        databases: { USPTO: true, PubMed: true, ClinicalTrials: true }
+        dateRange: { start: '', end: '' }
     });
 
-    const [selectedPatents, setSelectedPatents] = useState(new Set());
-    const [refinedKeywords, setRefinedKeywords] = useState([]);
-
-    // Results state
     const [patentResults, setPatentResults] = useState([]);
-    const [literatureResults, setLiteratureResults] = useState([]);
+    const [selectedPatents, setSelectedPatents] = useState(new Set());
+    const [patentExtractedKeywords, setPatentExtractedKeywords] = useState([]);
+    const [selectedPatentKeywords, setSelectedPatentKeywords] = useState(new Set());
 
-    // Future state for literature
+    const [pubmedResults, setPubmedResults] = useState([]);
     const [selectedPapers, setSelectedPapers] = useState(new Set());
+    const [pubmedExtractedKeywords, setPubmedExtractedKeywords] = useState([]);
+    const [selectedPubmedKeywords, setSelectedPubmedKeywords] = useState(new Set());
+
+    const [clinicalResults, setClinicalResults] = useState([]);
+
+    const [userAddedKeywords, setUserAddedKeywords] = useState([]);
+
+    const [keywordsPerDatabase, setKeywordsPerDatabase] = useState({
+        USPTO: [],
+        PubMed: [],
+        ClinicalTrials: []
+    });
 
     const value = {
-        searchParams,
-        setSearchParams,
-        selectedPatents,
-        setSelectedPatents,
-        refinedKeywords,
-        setRefinedKeywords,
-        patentResults,
-        setPatentResults,
-        literatureResults,
-        setLiteratureResults,
-        selectedPapers,
-        setSelectedPapers
+        searchParams, setSearchParams,
+        patentResults, setPatentResults,
+        selectedPatents, setSelectedPatents,
+        patentExtractedKeywords, setPatentExtractedKeywords,
+        selectedPatentKeywords, setSelectedPatentKeywords,
+        pubmedResults, setPubmedResults,
+        selectedPapers, setSelectedPapers,
+        pubmedExtractedKeywords, setPubmedExtractedKeywords,
+        selectedPubmedKeywords, setSelectedPubmedKeywords,
+        clinicalResults, setClinicalResults,
+        userAddedKeywords, setUserAddedKeywords,
+        keywordsPerDatabase, setKeywordsPerDatabase
     };
 
     return (

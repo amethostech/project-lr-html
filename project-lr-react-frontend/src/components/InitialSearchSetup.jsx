@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Search, AlertCircle, Database, FileText, Activity, Loader2 } from 'lucide-react';
+import { Plus, X, Search, AlertCircle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSearch } from '../context/SearchContext';
 
@@ -7,82 +7,46 @@ const MAX_KEYWORDS = 5;
 
 function InitialSearchSetup() {
     const navigate = useNavigate();
-    const { setSearchParams, setPatentResults, setLiteratureResults } = useSearch();
+    const { setSearchParams, setPatentResults, setKeywordsPerDatabase } = useSearch();
     const [isLoading, setIsLoading] = useState(false);
 
-    // State for keywords
     const [keywords, setKeywords] = useState([]);
     const [keywordInput, setKeywordInput] = useState('');
     const [keywordError, setKeywordError] = useState('');
 
-    // State for date range
-    const [dateRange, setDateRange] = useState({
-        start: '',
-        end: ''
-    });
-
-    // State for database selection
-    const [databases, setDatabases] = useState({
-        USPTO: true,
-        PubMed: true,
-        ClinicalTrials: true
-    });
-
-    // Validation error for submission
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [submitError, setSubmitError] = useState('');
 
-    // Handle adding a keyword
     const handleAddKeyword = () => {
         const trimmedKeyword = keywordInput.trim();
-
-        if (!trimmedKeyword) {
-            return;
-        }
-
+        if (!trimmedKeyword) return;
         if (keywords.length >= MAX_KEYWORDS) {
             setKeywordError(`Maximum of ${MAX_KEYWORDS} keywords allowed.`);
             return;
         }
-
         if (keywords.includes(trimmedKeyword)) {
             setKeywordError('This keyword has already been added.');
             return;
         }
-
         setKeywords([...keywords, trimmedKeyword]);
         setKeywordInput('');
         setKeywordError('');
         setSubmitError('');
     };
 
-    // Handle Enter key press for adding keywords
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') { e.preventDefault(); handleAddKeyword(); }
     };
 
-    // Handle removing a keyword
     const handleRemoveKeyword = (keywordToRemove) => {
         setKeywords(keywords.filter(k => k !== keywordToRemove));
         setKeywordError('');
     };
 
-    // Handle database checkbox toggle
-    const handleDatabaseChange = (database) => {
-        setDatabases(prev => ({
-            ...prev,
-            [database]: !prev[database]
-        }));
-    };
-
-    // Handle date range changes
     const handleDateChange = (field, value) => {
-        setDateRange(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        setDateRange(prev => ({ ...prev, [field]: value }));
     };
 
-    // Handle form submission
     const handleSubmit = async () => {
         if (keywords.length === 0) {
             setSubmitError('Please add at least one keyword to proceed.');
@@ -92,88 +56,38 @@ function InitialSearchSetup() {
         setIsLoading(true);
         setSubmitError('');
 
-        const params = {
-            keywords,
-            dateRange,
-            databases
-        };
-
+        const params = { keywords, dateRange };
         setSearchParams(params);
 
         try {
             const query = keywords.join(', ');
-            const NODE_BACKEND = import.meta.env.VITE_NODE_BACKEND_URL || 'http://localhost:3000';
             const PYTHON_BACKEND = import.meta.env.VITE_PYTHON_BACKEND_URL || 'http://localhost:8000';
-            console.log("Submitting Search:", { keywords, dateRange, databases });
+            console.log("Starting USPTO Search:", { keywords, dateRange });
 
-            if (databases.USPTO) {
-                const payload = {
-                    api_name: 'USPTO',
-                    query: query,
-                    params: {
-                        start_year: dateRange.start,
-                        end_year: dateRange.end
-                    }
-                };
-                console.log("Sending USPTO Payload:", payload);
-
-                const response = await fetch(`${PYTHON_BACKEND}/api/search`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`USPTO Search failed: ${response.statusText}`);
+            const payload = {
+                api_name: 'USPTO',
+                query: query,
+                params: {
+                    start_year: dateRange.start,
+                    end_year: dateRange.end
                 }
+            };
 
-                const data = await response.json();
-                setPatentResults(data.results || []);
+            const response = await fetch(`${PYTHON_BACKEND}/api/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`USPTO Search failed: ${response.statusText}`);
             }
 
-            if (databases.PubMed) {
-                console.log("Sending PubMed request...");
-                const response = await fetch(`${NODE_BACKEND}/api/pubmed-public/search`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        query: query,
-                        from: dateRange.start,
-                        to: dateRange.end,
-                        maxResults: 100
-                    })
-                });
+            const data = await response.json();
+            setPatentResults(data.results || []);
+            setKeywordsPerDatabase(prev => ({ ...prev, USPTO: keywords }));
 
-                if (!response.ok) {
-                    console.warn(`PubMed Search failed: ${response.statusText}`);
-                } else {
-                    const data = await response.json();
-                    console.log("PubMed results:", data.count);
-                    setLiteratureResults(prev => [...(Array.isArray(prev) ? prev : []), ...(data.results || [])]);
-                }
-            }
-
-            if (databases.ClinicalTrials) {
-                console.log("Sending Clinical Trials request...");
-                const response = await fetch(`${NODE_BACKEND}/api/clinical/search`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        query: query,
-                        maxResults: 100
-                    })
-                });
-
-                if (!response.ok) {
-                    console.warn(`Clinical Trials Search failed: ${response.statusText}`);
-                } else {
-                    const data = await response.json();
-                    console.log("Clinical Trials results:", data.count);
-                    setLiteratureResults(prev => [...(Array.isArray(prev) ? prev : []), ...(data.results || [])]);
-                }
-            }
-
-            navigate('/search');
+            navigate('/patent-results');
 
         } catch (error) {
             console.error("Search failed:", error);
@@ -186,7 +100,6 @@ function InitialSearchSetup() {
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
             <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-xl p-8">
-                {/* Header */}
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center w-14 h-14 bg-gray-100 rounded-xl mb-4">
                         <Search className="w-7 h-7 text-gray-700" />
@@ -195,181 +108,134 @@ function InitialSearchSetup() {
                         Patent & Literature Discovery
                     </h1>
                     <p className="text-gray-500 text-sm">
-                        Define your search parameters to query external databases
+                        Step 1: Search USPTO Patents
                     </p>
                 </div>
 
-                {/* Keyword Input Section */}
-                <div className="mb-8">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Keywords
-                        <span className="ml-2 text-gray-400 font-normal">
-                            ({keywords.length}/{MAX_KEYWORDS})
-                        </span>
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Keywords ({keywords.length}/{MAX_KEYWORDS})
                     </label>
-
-                    <div className="flex gap-2 mb-3">
+                    <div className="flex gap-2">
                         <input
                             type="text"
                             value={keywordInput}
-                            onChange={(e) => {
-                                setKeywordInput(e.target.value);
-                                setKeywordError('');
-                            }}
+                            onChange={(e) => setKeywordInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="e.g., Karuna Therapeutics"
-                            className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+                            placeholder="Enter a keyword..."
+                            disabled={isLoading}
+                            className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all disabled:bg-gray-100"
                         />
                         <button
                             onClick={handleAddKeyword}
-                            disabled={keywords.length >= MAX_KEYWORDS}
-                            className="px-4 py-3 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                            disabled={isLoading || keywords.length >= MAX_KEYWORDS}
+                            className="px-4 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                         >
                             <Plus className="w-5 h-5" />
-                            Add
                         </button>
                     </div>
-
-                    {/* Keyword Error Message */}
                     {keywordError && (
-                        <div className="flex items-center gap-2 text-red-600 text-sm mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                            {keywordError}
-                        </div>
+                        <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-4 h-4" /> {keywordError}
+                        </p>
                     )}
+                </div>
 
-                    {/* Keywords Chips */}
-                    {keywords.length > 0 && (
+                {keywords.length > 0 && (
+                    <div className="mb-6">
                         <div className="flex flex-wrap gap-2">
                             {keywords.map((keyword, index) => (
                                 <span
                                     key={index}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 text-gray-700 rounded-full text-sm"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-900 rounded-full text-sm font-medium border border-gray-200"
                                 >
                                     {keyword}
                                     <button
                                         onClick={() => handleRemoveKeyword(keyword)}
-                                        className="hover:bg-gray-200 rounded-full p-0.5 transition-colors"
+                                        disabled={isLoading}
+                                        className="text-gray-500 hover:text-red-600 transition-colors disabled:opacity-50"
                                     >
-                                        <X className="w-3.5 h-3.5" />
+                                        <X className="w-4 h-4" />
                                     </button>
                                 </span>
                             ))}
                         </div>
-                    )}
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-gray-200 my-6"></div>
-
-                {/* Search Parameters Section */}
-                <div className="mb-8">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Search Parameters</h2>
-
-                    {/* Year Range */}
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-3">
-                            Year Range
-                        </label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <input
-                                    type="number"
-                                    value={dateRange.start}
-                                    onChange={(e) => handleDateChange('start', e.target.value)}
-                                    placeholder="Start Year"
-                                    min="1900"
-                                    max="2099"
-                                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                                />
-                            </div>
-                            <div>
-                                <input
-                                    type="number"
-                                    value={dateRange.end}
-                                    onChange={(e) => handleDateChange('end', e.target.value)}
-                                    placeholder="End Year"
-                                    min="1900"
-                                    max="2099"
-                                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Database Sources */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">
-                            Database Sources
-                        </label>
-                        <div className="space-y-3">
-                            {/* USPTO */}
-                            <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={databases.USPTO}
-                                    onChange={() => handleDatabaseChange('USPTO')}
-                                    className="w-5 h-5 rounded border-gray-300 bg-white text-gray-900 focus:ring-gray-900 focus:ring-offset-0"
-                                />
-                                <Database className="w-5 h-5 text-gray-600" />
-                                <span className="text-gray-900">USPTO</span>
-                                <span className="text-gray-500 text-sm">(Patents)</span>
-                            </label>
-
-                            {/* PubMed */}
-                            <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={databases.PubMed}
-                                    onChange={() => handleDatabaseChange('PubMed')}
-                                    className="w-5 h-5 rounded border-gray-300 bg-white text-gray-900 focus:ring-gray-900 focus:ring-offset-0"
-                                />
-                                <FileText className="w-5 h-5 text-gray-600" />
-                                <span className="text-gray-900">PubMed</span>
-                                <span className="text-gray-500 text-sm">(Literature)</span>
-                            </label>
-
-                            {/* ClinicalTrials.gov */}
-                            <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={databases.ClinicalTrials}
-                                    onChange={() => handleDatabaseChange('ClinicalTrials')}
-                                    className="w-5 h-5 rounded border-gray-300 bg-white text-gray-900 focus:ring-gray-900 focus:ring-offset-0"
-                                />
-                                <Activity className="w-5 h-5 text-gray-600" />
-                                <span className="text-gray-900">ClinicalTrials.gov</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Submit Error Message */}
-                {submitError && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        {submitError}
                     </div>
                 )}
 
-                {/* Footer/Action */}
+                <div className="mb-8">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Year Range
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                        <input
+                            type="number"
+                            value={dateRange.start}
+                            onChange={(e) => handleDateChange('start', e.target.value)}
+                            placeholder="Start Year"
+                            min="1900"
+                            max="2099"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all disabled:bg-gray-100"
+                        />
+                        <input
+                            type="number"
+                            value={dateRange.end}
+                            onChange={(e) => handleDateChange('end', e.target.value)}
+                            placeholder="End Year"
+                            min="1900"
+                            max="2099"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all disabled:bg-gray-100"
+                        />
+                    </div>
+                </div>
+
+                {/* Database Source - Locked to USPTO */}
+                <div className="mb-8">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Database Source
+                    </label>
+                    <label className="flex items-center gap-3 p-3 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed">
+                        <input
+                            type="checkbox"
+                            checked={true}
+                            disabled={true}
+                            className="w-5 h-5 rounded border-gray-300 bg-gray-200 text-gray-900"
+                        />
+                        <span className="text-gray-900 font-medium">USPTO</span>
+                        <span className="text-gray-500 text-sm">(Patents - Required first step)</span>
+                    </label>
+                </div>
+
+                {submitError && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                        <p className="text-red-800 text-sm">{submitError}</p>
+                    </div>
+                )}
+
                 <button
                     onClick={handleSubmit}
-                    disabled={isLoading}
-                    className="w-full py-4 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-700 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                    disabled={isLoading || keywords.length === 0}
+                    className="w-full py-4 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                     {isLoading ? (
                         <>
                             <Loader2 className="w-5 h-5 animate-spin" />
-                            Searching Databases...
+                            Searching USPTO...
                         </>
                     ) : (
                         <>
                             <Search className="w-5 h-5" />
-                            Proceed to Search
+                            Search Patents
                         </>
                     )}
                 </button>
+
+                <p className="text-center text-gray-400 text-xs mt-4">
+                    We'll extract keywords from patent results for the next step
+                </p>
             </div>
         </div>
     );

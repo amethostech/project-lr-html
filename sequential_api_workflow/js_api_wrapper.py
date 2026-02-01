@@ -79,15 +79,18 @@ def call_js_api(api_name, query, **kwargs):
         return {"results": [], "error": str(e)}
 
 from patentsview_service import search_patents
+from keyword_extractor import extract_keywords
+
+class KeywordExtractionRequest(BaseModel):
+    data: list
+    source: str
 
 @app.post("/api/search")
 async def search_endpoint(request: SearchRequest):
     try:
-        # Extract kwargs from params
         kwargs = request.params
         print(f"DEBUG: Received Request - API: {request.api_name}, Query: {request.query}, Params: {kwargs}")
         
-        # Use PatentsView for USPTO searches (provides better data)
         if request.api_name.upper() == "USPTO":
             start_year = int(kwargs.get('start_year')) if kwargs.get('start_year') else None
             end_year = int(kwargs.get('end_year')) if kwargs.get('end_year') else None
@@ -100,14 +103,23 @@ async def search_endpoint(request: SearchRequest):
             )
             return {"results": result['results'], "total": result.get('total', len(result['results']))}
         
-        # Fall back to Node.js bridge for other APIs (PubMed, etc.)
         results = call_js_api(request.api_name, request.query, **kwargs)
         
-        # Flatten the response - results may be { results: [...], total: X }
         if isinstance(results, dict) and 'results' in results:
             return {"results": results['results'], "total": results.get('total', len(results['results']))}
         
         return {"results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/extract-keywords")
+async def extract_keywords_endpoint(request: KeywordExtractionRequest):
+    try:
+        print(f"DEBUG: Extracting keywords from {len(request.data)} items, source: {request.source}")
+        keywords_str = extract_keywords(request.data, request.source)
+        keywords_list = [k.strip() for k in keywords_str.split(",") if k.strip()]
+        print(f"DEBUG: Extracted keywords: {keywords_list}")
+        return {"keywords": keywords_list, "count": len(keywords_list)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

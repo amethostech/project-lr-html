@@ -1,12 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SearchProvider } from './context/SearchContext';
 import InitialSearchSetup from './components/InitialSearchSetup';
-import SearchExecutionScreen from './components/SearchExecutionScreen';
-import PatentResultsTable from './components/PatentResultsTable';
-import KeywordRefinementScreen from './components/KeywordRefinementScreen';
-import LiteratureResultsTable from './components/LiteratureResultsTable';
-import FinalReportScreen from './components/FinalReportScreen';
-import UnifiedResultsPage from './components/UnifiedResultsPage';
+import PatentResultsWithKeywords from './components/PatentResultsWithKeywords';
+import PubMedSearchScreen from './components/PubMedSearchScreen';
+import PubMedResultsWithKeywords from './components/PubMedResultsWithKeywords';
+import ClinicalSearchScreen from './components/ClinicalSearchScreen';
+import FinalResultsPage from './components/FinalResultsPage';
+import ComingSoonPage from './components/ComingSoonPage';
 
 function App() {
   return (
@@ -14,12 +14,12 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<InitialSearchSetup />} />
-          <Route path="/search" element={<SearchExecutionScreen />} />
-          <Route path="/results" element={<UnifiedResultsPage />} />
-          <Route path="/patents" element={<PatentResultsTable />} />
-          <Route path="/refinement" element={<KeywordRefinementScreen />} />
-          <Route path="/literature" element={<LiteratureResultsTable />} />
-          <Route path="/report" element={<FinalReportScreen />} />
+          <Route path="/patent-results" element={<PatentResultsWithKeywords />} />
+          <Route path="/pubmed-search" element={<PubMedSearchScreen />} />
+          <Route path="/pubmed-results" element={<PubMedResultsWithKeywords />} />
+          <Route path="/clinical-search" element={<ClinicalSearchScreen />} />
+          <Route path="/final-results" element={<FinalResultsPage />} />
+          <Route path="/analysis" element={<ComingSoonPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

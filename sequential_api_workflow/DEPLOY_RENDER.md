@@ -31,7 +31,7 @@ python-dotenv
 In Render dashboard → Environment → Add:
 | Key | Value |
 |-----|-------|
-| `PYTHON_VERSION` | `3.11` |
+| `PYTHON_VERSION` | `3.11.0` |
 
 ## Step 5: Deploy
 Click **Create Web Service** and wait for deployment.

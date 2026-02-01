@@ -54,13 +54,21 @@ def extract_keywords(data_list, source_api):
     # --- Default Text Extraction (PubMed, Patents) ---
     text_content = []
     for item in data_list:
-        title = item.get('Title') or item.get('patent_title') or item.get('Molecule Name') or ""
-        abstract = item.get('Abstract') or item.get('patent_abstract') or ""
+        title = item.get('Title') or item.get('title') or item.get('patent_title') or item.get('Molecule Name') or ""
+        abstract = item.get('Abstract') or item.get('abstract') or item.get('patent_abstract') or ""
         text_content.append(f"{title} {abstract}")
 
     full_text = " ".join(text_content).lower()
     words = re.findall(r'\b[a-z]{4,}\b', full_text)
-    stops = {'with', 'this', 'that', 'from', 'were', 'which', 'study', 'using', 'these', 'results', 'patent', 'invention', 'method', 'system'}
+    stops = {
+        'with', 'this', 'that', 'from', 'were', 'which', 'study', 'using', 'these', 
+        'results', 'patent', 'invention', 'method', 'system', 'methods', 'systems',
+        'compounds', 'compositions', 'such', 'present', 'described', 'thereof',
+        'comprising', 'includes', 'including', 'also', 'have', 'having', 'been',
+        'more', 'other', 'various', 'novel', 'provides', 'provided', 'relate',
+        'relates', 'related', 'disclosed', 'embodiments', 'embodiment', 'abstract',
+        'wherein', 'herein', 'each', 'first', 'second', 'least', 'most', 'many'
+    }
     filtered_words = [w for w in words if w not in stops]
     
     common = Counter(filtered_words).most_common(5)
