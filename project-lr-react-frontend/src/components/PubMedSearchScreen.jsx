@@ -18,7 +18,6 @@ function PubMedSearchScreen() {
     const hasRun = useRef(false);
 
     useEffect(() => {
-        // Prevent double execution in React StrictMode
         if (hasRun.current) return;
         hasRun.current = true;
         performPubMedSearch();
@@ -26,7 +25,6 @@ function PubMedSearchScreen() {
 
     const performPubMedSearch = async () => {
         try {
-            // Combine: original keywords + selected extracted keywords + user added keywords
             const allKeywords = [
                 ...(searchParams?.keywords || []),
                 ...Array.from(selectedPatentKeywords),
@@ -52,6 +50,7 @@ function PubMedSearchScreen() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     query: query,
+                    database: 'pubmed',
                     from: searchParams?.dateRange?.start || null,
                     to: searchParams?.dateRange?.end || null,
                     maxResults: 100

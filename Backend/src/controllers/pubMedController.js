@@ -1,57 +1,37 @@
 import { format } from 'date-fns';
-import User from '../models/User.js'; 
+import User from '../models/User.js';
 import { sendEmailWithSendGrid } from '../services/emailService.js';
 import { generateExcelBuffer, appendToConsolidatedExcel } from '../services/excelService.js';
 import { searchPubMedUtil } from '../services/pubmedService.js';
 import { normalizeResultsForConsolidated } from '../utils/consolidatedNormalizer.js';
 import path from 'path';
 
-
-
-
 /**
- * Executes the search, generates the Excel, and sends the notification email.
+ * Executes the search, generates the Excel, and sends the notification email in the background.
+ * This is only called when an email is provided.
  */
-async function processSearchAsync(recipientEmail, from, to, query, database, maxResults = 100) {
+async function processSearchAsync(recipientEmail, from, to, query, maxResults = 100) {
     const startTime = Date.now();
     const formattedFrom = from ? format(new Date(from), 'PPP') : 'N/A';
     const formattedTo = to ? format(new Date(to), 'PPP') : 'N/A';
-    
-    // Normalize database name for display (capitalize first letter)
-    const displayDatabase = database.charAt(0).toUpperCase() + database.slice(1).toLowerCase();
-    
+
     const searchDetailsHtml = `
         <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 8px 0; font-weight: bold; color: #495057; width: 30%;">Keywords Searched:</td><td style="padding: 8px 0; color: #212529;">"${query}"</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #495057;">Database:</td><td style="padding: 8px 0; color: #212529;">${displayDatabase}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #495057;">Database:</td><td style="padding: 8px 0; color: #212529;">PubMed</td></tr>
             <tr><td style="padding: 8px 0; font-weight: bold; color: #495057;">Date Range:</td><td style="padding: 8px 0; color: #212529;">${formattedFrom} to ${formattedTo}</td></tr>
             <tr><td style="padding: 8px 0; font-weight: bold; color: #495057;">Request Date:</td><td style="padding: 8px 0; color: #212529;">${format(new Date(), 'PPP')} at ${format(new Date(), 'p')}</td></tr>
         </table>
     `;
 
     try {
-        console.log(`[BACKGROUND] Starting async search for ${recipientEmail} on ${database}`);
+        console.log(`[BACKGROUND] Starting async PubMed search for ${recipientEmail}`);
 
-        let searchData = { count: 0, results: [] };
-
-        // Case-insensitive database switch
-        switch (database.toLowerCase()) {
-            case "pubmed":
-                console.log(`[BACKGROUND] Calling searchPubMedUtil with query="${query}", from="${from}", to="${to}", maxResults=${maxResults}`);
-                searchData = await searchPubMedUtil(query, from, to, maxResults); 
-                console.log(`[BACKGROUND] searchPubMedUtil returned: count=${searchData.count}, results=${searchData.results?.length || 0}`);
-                break;
-            case "pubchem":
-                throw new Error(`PubChem search is not yet implemented. Please use PubMed for now.`);
-            default:
-                throw new Error(`Search functionality for ${displayDatabase} is not supported. Available databases: PubMed`);
-        }
-
+        const searchData = await searchPubMedUtil(query, from, to, maxResults);
         const { count, results } = searchData;
 
         // --- Handle No Results ---
         if (count === 0 || results.length === 0) {
-            // ... (No results email logic - kept the same for brevity) ...
             const htmlContent = `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2 style="color: #333;">Search Completed - No Results Found</h2>
@@ -69,7 +49,7 @@ async function processSearchAsync(recipientEmail, from, to, query, database, max
 
             await sendEmailWithSendGrid(
                 recipientEmail,
-                `[Search Results] No results found for ${displayDatabase}`,
+                `[Search Results] No results found for PubMed`,
                 htmlContent
             );
 
@@ -77,24 +57,20 @@ async function processSearchAsync(recipientEmail, from, to, query, database, max
             return;
         }
 
-        // --- Handle Success with Results ---
-        
         console.log(`[BACKGROUND] Generating Excel file for ${results.length} results...`);
-        // Use imported excel service
-        const excelBuffer = await generateExcelBuffer(results); 
+        const excelBuffer = await generateExcelBuffer(results);
         const excelSizeMB = (excelBuffer.length / (1024 * 1024)).toFixed(2);
-        
-        // Save to consolidated Excel file (normalized for readability)
+
+        // Save to consolidated Excel file
         try {
             const consolidatedFile = path.resolve('consolidated_search_results.xlsx');
             const normalized = normalizeResultsForConsolidated(results, 'PubMed');
             await appendToConsolidatedExcel(consolidatedFile, normalized, 'PubMed');
-            console.log(`✅ Consolidated Excel updated: PubMed (${normalized.length} records)`);
+            console.log(`Consolidated Excel updated: PubMed (${normalized.length} records)`);
         } catch (excelError) {
-            console.error(`⚠️ Warning: Failed to save to consolidated Excel: ${excelError.message}`);
-            // Continue even if consolidated Excel save fails
+            console.error(`Warning: Failed to save to consolidated Excel: ${excelError.message}`);
         }
-        
+
         // Fetch user name for file naming
         let username = 'UnknownUser';
         try {
@@ -103,13 +79,12 @@ async function processSearchAsync(recipientEmail, from, to, query, database, max
         } catch (userError) {
             console.log('[BACKGROUND] Could not fetch user name, using default');
         }
-        
+
         const currentDate = new Date();
-        const dateStr = currentDate.toISOString().split('T')[0]; 
-        const timeStr = currentDate.toTimeString().split(' ')[0].replace(/:/g, '-'); 
-        const filename = `${username}_${displayDatabase}_${dateStr}_${timeStr}.xlsx`;
-        
-        // Success Email HTML (kept the same for brevity)
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const timeStr = currentDate.toTimeString().split(' ')[0].replace(/:/g, '-');
+        const filename = `${username}_PubMed_${dateStr}_${timeStr}.xlsx`;
+
         const htmlContent = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #28a745;">Search Results Ready! 🎉</h2>
@@ -118,23 +93,22 @@ async function processSearchAsync(recipientEmail, from, to, query, database, max
                 
                 <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
                     <h3 style="color: #155724; margin-top: 0;">Search Summary</h3>
-                    ${searchDetailsHtml.replace(/495057/g, '155724').replace(/212529/g, '212529')}
+                    ${searchDetailsHtml}
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr><td style="padding: 8px 0; font-weight: bold; color: #155724; width: 30%;">Results Found:</td><td style="padding: 8px 0; color: #212529; font-size: 18px; font-weight: bold;">${results.length} items</td></tr>
                         <tr><td style="padding: 8px 0; font-weight: bold; color: #155724;">File Size:</td><td style="padding: 8px 0; color: #212529;">${excelSizeMB} MB</td></tr>
                     </table>
                 </div>
                 
-                <p>Thank you for using our research service. If you need any assistance with the data or have questions about the results, please don't hesitate to contact us.</p>
+                <p>Thank you for being part of our research service.</p>
                 <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
                 <p style="font-size: 12px; color: #999;">Anandi Technology</p>
             </div>
         `;
 
-        // Use imported email service
         await sendEmailWithSendGrid(
             recipientEmail,
-            `[Search Results] Data from ${displayDatabase} (${results.length} items)`,
+            `[Search Results] Data from PubMed (${results.length} items)`,
             htmlContent,
             {
                 content: excelBuffer,
@@ -144,19 +118,17 @@ async function processSearchAsync(recipientEmail, from, to, query, database, max
         );
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`[BACKGROUND] ✅ Search completed successfully for ${recipientEmail} in ${duration}s`);
+        console.log(`[BACKGROUND] PubMed search completed successfully for ${recipientEmail} in ${duration}s`);
 
     } catch (error) {
-        // --- Handle Error Notification ---
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.error(`[BACKGROUND]  Error for ${recipientEmail} after ${duration}s:`, error.message);
-        
-        // Error email content (kept the same for brevity)
+        console.error(`[BACKGROUND] PubMed Error for ${recipientEmail} after ${duration}s:`, error.message);
+
         const errorHtml = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #d9534f;">Search Error - Request Failed</h2>
                 <p>Dear User,</p>
-                <p>We encountered an error while processing your search request. Please try again or contact support.</p>
+                <p>We encountered an error while processing your search request.</p>
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6c757d;">
                     <h3 style="color: #495057; margin-top: 0;">Search Request Details</h3>
                     ${searchDetailsHtml}
@@ -165,22 +137,15 @@ async function processSearchAsync(recipientEmail, from, to, query, database, max
                     <h4 style="color: #721c24; margin-top: 0;">Error Message:</h4>
                     <p style="margin: 5px 0; color: #721c24;">${error.message}</p>
                 </div>
-                <p>Thank you for your patience.</p>
                 <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
                 <p style="font-size: 12px; color: #999;">Anandi Technology</p>
             </div>
         `;
-        
+
         try {
-            // Use imported email service
-            await sendEmailWithSendGrid(
-                recipientEmail,
-                `[Search Error] Failed to process your request`,
-                errorHtml
-            );
-            console.log(`[BACKGROUND] 📧 Error notification email sent to ${recipientEmail}`);
+            await sendEmailWithSendGrid(recipientEmail, `[Search Error] Failed to process PubMed request`, errorHtml);
         } catch (emailError) {
-            console.error('[BACKGROUND] ❌ Failed to send error notification:', emailError.message);
+            console.error('[BACKGROUND]  Failed to send error notification:', emailError.message);
         }
     }
 }
@@ -189,78 +154,76 @@ async function processSearchAsync(recipientEmail, from, to, query, database, max
 // ==================== MAIN API CONTROLLER ====================
 
 /**
- * Main controller for the search API endpoint.
- * Responds immediately with 202 and delegates work to processSearchAsync.
+ * Main controller for the PubMed search API endpoint.
+ * Handles both:
+ * 1. Authenticated Search (with email) -> returns results + sends email in background
+ * 2. Guest Search (no email) -> returns results only
  */
 export const searchAPIController = async (req, res) => {
     try {
-        const recipientEmail = req.userEmail;
-        if (!recipientEmail) {
-            return res.status(500).json({ error: 'Recipient email not found from token.' });
-        }
+        // Support email from JWT (userEmail) or body (email)
+        const recipientEmail = req.userEmail || req.body.email || null;
 
         let { from, to, query, database, maxResults } = req.body;
 
-        if (!query || !database) {
-            return res.status(400).json({ error: 'Missing required parameters: query, database' });
-        }
-        
-        // Normalize database name (convert to lowercase for consistency)
-        database = database.toLowerCase();
-        
-        // Optional date validation (only if provided)
-        if (from && isNaN(Date.parse(from))) {
-            return res.status(400).json({ error: 'Invalid date format for "from" parameter' });
-        }
-        if (to && isNaN(Date.parse(to))) {
-            return res.status(400).json({ error: 'Invalid date format for "to" parameter' });
+        // Ensure we are only handling PubMed
+        if (database && database.toLowerCase() !== 'pubmed') {
+            return res.status(400).json({ error: 'This controller only supports PubMed searches.' });
         }
 
-        console.log(`[API] Request from ${recipientEmail} for "${query}" on ${database}`);
+        if (!query) {
+            return res.status(400).json({ error: 'Missing required parameter: query' });
+        }
 
-        // Respect user-specified maxResults; default to 100 if missing; require at least 1
+        console.log(`[API] PubMed Request for "${query}"${recipientEmail ? ` from ${recipientEmail}` : ' (GUEST)'}`);
+
         const parsedMax = parseInt(maxResults || 100, 10);
         const validMaxResults = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 100;
 
-        // Perform search synchronously to return results to frontend
-        let searchData = { count: 0, results: [] };
-        const displayDatabase = database.charAt(0).toUpperCase() + database.slice(1);
-
-        // Case-insensitive database switch
-        switch (database.toLowerCase()) {
-            case "pubmed":
-                console.log(`[API] Calling searchPubMedUtil with query="${query}", from="${from}", to="${to}", maxResults=${validMaxResults}`);
-                searchData = await searchPubMedUtil(query, from || null, to || null, validMaxResults);
-                console.log(`[API] searchPubMedUtil returned: count=${searchData.count}, results=${searchData.results?.length || 0}`);
-                break;
-            default:
-                return res.status(400).json({
-                    error: `Search functionality for ${displayDatabase} is not supported via this endpoint. Available: PubMed`
-                });
+        // Process keywords (Commas -> OR logic for PubMed)
+        const keywords = query.split(',').map(k => k.trim()).filter(k => k.length > 0);
+        let pubmedQuery = query;
+        if (keywords.length > 1) {
+            pubmedQuery = keywords.map(k => `(${k})`).join(' OR ');
         }
 
-        const { count, results } = searchData;
+        // Execute search
+        const searchData = await searchPubMedUtil(pubmedQuery, from || null, to || null, validMaxResults);
 
-        // Send email in background (non-blocking)
-        setImmediate(() => {
-            processSearchAsync(recipientEmail, from || null, to || null, query, database, validMaxResults).catch(err => {
-                console.error('[API] Background email error:', err);
+        // Map results to standard format for frontend
+        const formattedResults = searchData.results.map(article => ({
+            id: article['DOI/PMID'] || article.id || '',
+            title: article['Title'] || article.title || '',
+            authors: article['Authors'] || article.authors || '',
+            abstract: article['Abstract'] || article.abstract || '',
+            year: article['Publication Year'] || article.year || '',
+            source: 'PubMed',
+            searchTerm: article['Search Term'] || query
+        }));
+
+        // If email is provided, trigger background processing (Excel + Email)
+        if (recipientEmail) {
+            setImmediate(() => {
+                processSearchAsync(recipientEmail, from || null, to || null, pubmedQuery, validMaxResults).catch(err => {
+                    console.error('[API] Background task error:', err);
+                });
             });
-        });
+        }
 
-        // Return results immediately to frontend
         return res.status(200).json({
             success: true,
-            count: count || results.length,
-            results: results || [],
-            message: `Found ${count || results.length} results. Results will also be emailed to ${recipientEmail} shortly.`,
-            database: displayDatabase
+            count: searchData.count,
+            results: formattedResults,
+            message: recipientEmail
+                ? `Found ${searchData.count} results. They will also be emailed to ${recipientEmail} shortly.`
+                : `Found ${searchData.count} results.`,
+            database: 'PubMed'
         });
 
     } catch (error) {
-        console.error("[API]  Controller Error:", error.message);
+        console.error("[API] PubMed Controller Error:", error.message);
         return res.status(500).json({
-            error: 'Failed to process request',
+            error: 'Failed to process PubMed request',
             details: error.message
         });
     }
