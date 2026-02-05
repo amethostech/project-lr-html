@@ -60,20 +60,17 @@ function InitialSearchSetup() {
         setSearchParams(params);
 
         try {
-            const query = keywords.join(', ');
-            const PYTHON_BACKEND = import.meta.env.VITE_PYTHON_BACKEND_URL || 'http://localhost:8000';
-            console.log("Starting USPTO Search:", { keywords, dateRange });
+            const queryText = keywords.join(', ');
+            const NODE_BACKEND = import.meta.env.VITE_NODE_BACKEND_URL || 'http://localhost:3000';
+            console.log("Starting USPTO Search via Node.js:", { keywords, dateRange });
 
             const payload = {
-                api_name: 'USPTO',
-                query: query,
-                params: {
-                    start_year: dateRange.start,
-                    end_year: dateRange.end
-                }
+                keywords: keywords,
+                year: dateRange.start || 2024,
+                size: 100
             };
 
-            const response = await fetch(`${PYTHON_BACKEND}/api/search`, {
+            const response = await fetch(`${NODE_BACKEND}/api/uspto-public/search`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

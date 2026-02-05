@@ -14,6 +14,7 @@ import searchRoutes from './src/routes/searchRoutes.js'
 import newsArticlesRoutes from './src/routes/newsArticlesRoutes.js'
 import clinicalRoutes from './src/routes/clinicalRoutes.js'
 import pubmedPublicRoutes from './src/routes/pubmedPublicRoutes.js'
+import usptoPublicRoutes from './src/routes/usptoPublicRoutes.js'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,6 +70,7 @@ app.use('/api/search', searchRoutes)
 app.use('/api/news', newsArticlesRoutes);
 app.use('/api/clinical', clinicalRoutes);
 app.use('/api/pubmed-public', pubmedPublicRoutes);
+app.use('/api/uspto-public', usptoPublicRoutes);
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
