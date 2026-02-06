@@ -164,7 +164,7 @@ export const searchAPIController = async (req, res) => {
         // Support email from JWT (userEmail) or body (email)
         const recipientEmail = req.userEmail || req.body.email || null;
 
-        let { from, to, query, database, maxResults } = req.body;
+        let { from, to, query, database, maxResults, operator } = req.body;
 
         // Ensure we are only handling PubMed
         if (database && database.toLowerCase() !== 'pubmed') {
@@ -175,16 +175,17 @@ export const searchAPIController = async (req, res) => {
             return res.status(400).json({ error: 'Missing required parameter: query' });
         }
 
-        console.log(`[API] PubMed Request for "${query}"${recipientEmail ? ` from ${recipientEmail}` : ' (GUEST)'}`);
+        console.log(`[API] PubMed Request for "${query}" with operator ${operator || 'OR'}${recipientEmail ? ` from ${recipientEmail}` : ' (GUEST)'}`);
 
         const parsedMax = parseInt(maxResults || 100, 10);
         const validMaxResults = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 100;
 
-        // Process keywords (Commas -> OR logic for PubMed)
+        // Process keywords (Commas -> select logic for PubMed)
         const keywords = query.split(',').map(k => k.trim()).filter(k => k.length > 0);
         let pubmedQuery = query;
         if (keywords.length > 1) {
-            pubmedQuery = keywords.map(k => `(${k})`).join(' OR ');
+            const joinOp = (operator && operator.toUpperCase() === 'AND') ? ' AND ' : ' OR ';
+            pubmedQuery = keywords.map(k => `(${k})`).join(joinOp);
         }
 
         // Execute search

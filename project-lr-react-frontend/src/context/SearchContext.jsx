@@ -5,7 +5,8 @@ const SearchContext = createContext();
 export function SearchProvider({ children }) {
     const [searchParams, setSearchParams] = useState({
         keywords: [],
-        dateRange: { start: '', end: '' }
+        dateRange: { start: '', end: '' },
+        operator: 'OR'
     });
 
     const [patentResults, setPatentResults] = useState([]);

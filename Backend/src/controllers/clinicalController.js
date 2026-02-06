@@ -18,26 +18,29 @@ export const searchClinicalTrials = async (req, res) => {
 
         console.log(`[Clinical Trials] Searching for: "${query}", maxResults: ${maxResults}`);
 
-        // Calculate pages needed (pageSize is 50 by default in service)
         const pageSize = 50;
         const maxPages = Math.ceil(maxResults / pageSize);
-
-        // ClinicalTrials.gov works better with single terms or simple queries
-        // Split by comma and use the first keyword for better results
         const keywords = query.split(',').map(k => k.trim()).filter(k => k.length > 0);
-        const searchQuery = keywords.length > 0 ? keywords[0] : query;
+        const { operator = 'OR' } = req.body;
 
-        console.log(`[Clinical Trials] Using search term: "${searchQuery}"`);
+        let searchQuery = query;
+        if (keywords.length > 1) {
+            const joinOp = (operator && operator.toUpperCase() === 'AND') ? ' AND ' : ' OR ';
+            searchQuery = keywords.map(k => `(${k})`).join(joinOp);
+        } else if (keywords.length === 1) {
+            searchQuery = keywords[0];
+        }
+
+        console.log(`[Clinical Trials] Using search term: "${searchQuery}" with operator: ${operator}`);
 
         const { raw, formatted } = await fetchStudies({
-            customQuery: searchQuery,  // Use customQuery for exact control
+            customQuery: searchQuery,
             maxPages,
             pageSize
         });
 
         console.log(`[Clinical Trials] Found ${formatted.length} studies`);
 
-        // Transform to consistent format for frontend
         const results = formatted.map(study => ({
             id: study.id,
             title: study.title,

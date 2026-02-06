@@ -89,7 +89,7 @@ async function fetchFullText(patentId) {
 /**
  * Background processing: generates Excel and emails results to user
  */
-async function processUsptoSearchAsync(recipientEmail, keywords, year, results) {
+async function processUsptoSearchAsync(recipientEmail, keywords, startYear, endYear, results) {
     const startTime = Date.now();
     try {
         console.log(`[USPTO] Background processing for ${recipientEmail}`);
@@ -124,7 +124,7 @@ async function processUsptoSearchAsync(recipientEmail, keywords, year, results) 
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #28a745;">USPTO Search Results Ready! 🎉</h2>
                 <p>Keywords: "${keywords}"</p>
-                <p>Date Range Year: ${year}</p>
+                <p>Date Range: ${startYear} - ${endYear}</p>
                 <p>Found ${results.length} results.</p>
                 <p>The results are attached to this email as an Excel file.</p>
                 <hr>
@@ -142,7 +142,7 @@ async function processUsptoSearchAsync(recipientEmail, keywords, year, results) 
                 contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             }
         );
-        console.log(`[USPTO] ✅ Email sent successfully to ${recipientEmail}`);
+        console.log(`[USPTO]  Email sent successfully to ${recipientEmail}`);
     } catch (error) {
         console.error(`[USPTO] Background Error:`, error.message);
     }
@@ -153,18 +153,18 @@ async function processUsptoSearchAsync(recipientEmail, keywords, year, results) 
  */
 export const searchUsptoController = async (req, res) => {
     try {
-        // Support email from JWT (userEmail) or body (email)
         const recipientEmail = req.userEmail || req.body.email || null;
-        const { keywords, year = 2024, page = 1, size = 10 } = req.body;
+        const { keywords, operator, startYear, endYear, page = 1, size = 10 } = req.body;
 
-        // Keywords validation
         const queryKeywords = Array.isArray(keywords) ? keywords.join(', ') : keywords;
         if (!queryKeywords || queryKeywords.trim().length === 0) {
             return res.status(400).json({ success: false, error: 'Please provide search keywords' });
         }
 
-        const startDate = `${year}-01-01`;
-        const endDate = `${year}-12-31`;
+        const startDate = `${startYear}-01-01`;
+        const endDate = `${endYear}-12-31`;
+
+        const operatorTag = (operator && operator.toUpperCase() === 'AND') ? '_text_all' : '_text_any';
 
         // Build PatentsView Query
         const queryPayload = {
@@ -174,9 +174,9 @@ export const searchUsptoController = async (req, res) => {
                     { "_lte": { "patent_date": endDate } },
                     {
                         "_or": [
-                            { "_text_any": { "patent_title": queryKeywords } },
-                            { "_text_any": { "patent_abstract": queryKeywords } },
-                            { "_text_any": { "assignees.assignee_organization": queryKeywords } }
+                            { [operatorTag]: { "patent_title": queryKeywords } },
+                            { [operatorTag]: { "patent_abstract": queryKeywords } },
+                            { [operatorTag]: { "assignees.assignee_organization": queryKeywords } }
                         ]
                     }
                 ]
@@ -189,7 +189,7 @@ export const searchUsptoController = async (req, res) => {
             }
         };
 
-        console.log(`[USPTO] Running Search API Controller for: "${queryKeywords}" in ${year}`);
+        console.log(`[USPTO] Running Search API Controller for: "${queryKeywords}" in range ${startYear}-${endYear}`);
 
         const response = await fetch(PATENTSVIEW_URL, {
             method: 'POST',
@@ -213,10 +213,8 @@ export const searchUsptoController = async (req, res) => {
 
             console.log(`[USPTO] Fetching full text ${i + 1}/${patents.length} → ${patentId}`);
 
-            // Try to fetch claims and description
             const { claims, description, url: fulltextUrl } = await fetchFullText(patentId);
 
-            // Wait slightly between requests to avoid USPTO rate limits
             if (patents.length > 1 && i < patents.length - 1) {
                 await sleep(600);
             }
@@ -242,7 +240,7 @@ export const searchUsptoController = async (req, res) => {
         // Trigger background email if email is available
         if (recipientEmail) {
             setImmediate(() => {
-                processUsptoSearchAsync(recipientEmail, queryKeywords, year, formattedResults).catch(err => {
+                processUsptoSearchAsync(recipientEmail, queryKeywords, startYear, endYear, formattedResults).catch(err => {
                     console.error('[USPTO] Background task error:', err.message);
                 });
             });

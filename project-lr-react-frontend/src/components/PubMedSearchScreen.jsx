@@ -50,6 +50,7 @@ function PubMedSearchScreen() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     query: query,
+                    operator: searchParams?.operator || 'OR',
                     database: 'pubmed',
                     from: searchParams?.dateRange?.start || null,
                     to: searchParams?.dateRange?.end || null,

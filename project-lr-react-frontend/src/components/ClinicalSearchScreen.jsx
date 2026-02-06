@@ -54,6 +54,7 @@ function ClinicalSearchScreen() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     query: query,
+                    operator: searchParams?.operator || 'OR',
                     maxResults: 100
                 })
             });

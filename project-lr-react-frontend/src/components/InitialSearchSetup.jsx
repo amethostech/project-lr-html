@@ -10,6 +10,7 @@ function InitialSearchSetup() {
     const { setSearchParams, setPatentResults, setKeywordsPerDatabase } = useSearch();
     const [isLoading, setIsLoading] = useState(false);
 
+    const [operator, setOperator] = useState('OR');
     const [keywords, setKeywords] = useState([]);
     const [keywordInput, setKeywordInput] = useState('');
     const [keywordError, setKeywordError] = useState('');
@@ -56,17 +57,19 @@ function InitialSearchSetup() {
         setIsLoading(true);
         setSubmitError('');
 
-        const params = { keywords, dateRange };
+        const params = { keywords, dateRange, operator };
         setSearchParams(params);
 
         try {
             const queryText = keywords.join(', ');
             const NODE_BACKEND = import.meta.env.VITE_NODE_BACKEND_URL || 'http://localhost:3000';
-            console.log("Starting USPTO Search via Node.js:", { keywords, dateRange });
+            console.log("Starting USPTO Search via Node.js:", { keywords, dateRange, operator });
 
             const payload = {
                 keywords: keywords,
-                year: dateRange.start || 2024,
+                operator: operator,
+                startYear: dateRange.start || 2024,
+                endYear: dateRange.end || 2024,
                 size: 100
             };
 
@@ -157,6 +160,39 @@ function InitialSearchSetup() {
                                 </span>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {keywords.length > 1 && (
+                    <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                            Keyword Matching Logic
+                        </label>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => setOperator('OR')}
+                                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${operator === 'OR'
+                                    ? 'bg-gray-900 text-white shadow-md'
+                                    : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-900'
+                                    }`}
+                            >
+                                OR (Any keyword)
+                            </button>
+                            <button
+                                onClick={() => setOperator('AND')}
+                                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${operator === 'AND'
+                                    ? 'bg-gray-900 text-white shadow-md'
+                                    : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-900'
+                                    }`}
+                            >
+                                AND (All keywords)
+                            </button>
+                        </div>
+                        <p className="mt-2 text-xs text-gray-400">
+                            {operator === 'OR'
+                                ? 'Finds results containing at least one of your keywords.'
+                                : 'Finds results containing all of your keywords.'}
+                        </p>
                     </div>
                 )}
 
