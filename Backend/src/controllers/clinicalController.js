@@ -7,14 +7,12 @@ import { fetchStudies } from '../services/clinicalService.js';
  */
 export const searchClinicalTrials = async (req, res) => {
     try {
-        const { query = '', maxResults = 100 } = req.body;
+        const { query = '', maxResults = 100, operator = 'OR', phase, status: trialStatus, sponsor_type } = req.body;
 
         console.log(`[Clinical Trials] Searching for: "${query}", maxResults: ${maxResults}`);
 
         const pageSize = 50;
-        const maxPages = Math.ceil(maxResults / pageSize);
-        const keywords = query.split(',').map(k => k.trim()).filter(k => k.length > 0);
-        const { operator = 'OR' } = req.body;
+        const keywords = query ? query.split(',').map(k => k.trim()).filter(k => k.length > 0) : [];
 
         let searchQuery = query;
         if (keywords.length > 1) {
@@ -28,27 +26,19 @@ export const searchClinicalTrials = async (req, res) => {
 
         const { raw, formatted } = await fetchStudies({
             customQuery: searchQuery,
-            maxPages,
-            pageSize
+            pageSize,
+            phase,
+            status: trialStatus,
+            sponsor_type
         });
 
         console.log(`[Clinical Trials] Found ${formatted.length} studies`);
 
-        const results = formatted.map(study => ({
-            id: study.id,
-            title: study.title,
-            officialTitle: study.officialTitle,
-            sponsor: study.sponsor,
-            status: study.status,
-            source: 'ClinicalTrials.gov',
-            url: `https://clinicaltrials.gov/study/${study.id}`
-        }));
-
         return res.status(200).json({
             success: true,
-            count: results.length,
-            results,
-            message: `Found ${results.length} clinical trials`
+            count: formatted.length,
+            results: formatted,
+            message: `Found ${formatted.length} clinical trials`
         });
 
     } catch (error) {

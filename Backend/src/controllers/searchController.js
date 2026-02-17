@@ -15,7 +15,7 @@ import { normalizeResultsForConsolidated } from "../utils/consolidatedNormalizer
  */
 export async function searchTrials(req, res) {
   try {
-    let { keywords, query, maxPages, pageSize, maxResults } = req.body;
+    let { keywords, query, pageSize, maxResults, phase, status: trialStatus, sponsor_type } = req.body;
 
     // Sanitize keywords if they are objects (which happens from frontend)
     if (Array.isArray(keywords) && keywords.length > 0 && typeof keywords[0] === 'object') {
@@ -27,23 +27,24 @@ export async function searchTrials(req, res) {
       keywords = [];
     }
 
-    // Respect user-specified limits; require at least 1; no hard cap
-    const parsedMax = parseInt(maxResults || pageSize || 100, 10);
+    // Respect user-specified limits
+    const parsedMax = parseInt(maxResults || 100, 10);
     const effectiveMax = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 100;
-    const parsedPageSize = parseInt(pageSize || effectiveMax, 10);
-    const effectivePageSize = Number.isFinite(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : effectiveMax;
-    const effectiveMaxPages = maxPages ?? undefined;
+    const parsedPageSize = parseInt(pageSize || 50, 10);
+    const effectivePageSize = Number.isFinite(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 50;
 
-    // fetchStudies returns { raw: [...], formatted: [...] }
+    // fetchStudies now paginates through ALL pages automatically
     const { raw, formatted } = await fetchStudies({
       keywords,
       customQuery: query,
-      maxPages: effectiveMaxPages,
-      pageSize: effectivePageSize
+      pageSize: effectivePageSize,
+      phase,
+      status: trialStatus,
+      sponsor_type
     });
 
-    // Respect maxResults hard cap on the formatted array
-    const limited = formatted.slice(0, effectiveMax);
+    // Use all fetched results (pagination already handles full retrieval)
+    const limited = formatted;
 
     // Console log full raw backend response (for later inspection / saving to DB)
     logInfo("=== Full raw ClinicalTrials data (server console) ===");
