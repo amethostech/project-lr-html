@@ -177,8 +177,9 @@ export const searchAPIController = async (req, res) => {
             return res.status(400).json({ error: 'This controller only supports PubMed searches.' });
         }
 
-        if (!query) {
-            return res.status(400).json({ error: 'Missing required parameter: query' });
+        // Allow empty query for date-range-only searches
+        if (!query && !from && !to) {
+            return res.status(400).json({ error: 'Please provide a query or a date range.' });
         }
 
         console.log(`[API] PubMed Request for "${query}" with operator ${operator || 'OR'}${recipientEmail ? ` from ${recipientEmail}` : ' (GUEST)'}`);
@@ -187,8 +188,8 @@ export const searchAPIController = async (req, res) => {
         const validMaxResults = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 100;
 
         // Process keywords (Commas -> select logic for PubMed)
-        const keywords = query.split(',').map(k => k.trim()).filter(k => k.length > 0);
-        let pubmedQuery = query;
+        const keywords = query ? query.split(',').map(k => k.trim()).filter(k => k.length > 0) : [];
+        let pubmedQuery = query || '';
         if (keywords.length > 1) {
             const joinOp = (operator && operator.toUpperCase() === 'AND') ? ' AND ' : ' OR ';
             pubmedQuery = keywords.map(k => `(${k})`).join(joinOp);

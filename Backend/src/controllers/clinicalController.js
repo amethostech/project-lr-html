@@ -7,14 +7,7 @@ import { fetchStudies } from '../services/clinicalService.js';
  */
 export const searchClinicalTrials = async (req, res) => {
     try {
-        const { query, maxResults = 100 } = req.body;
-
-        if (!query) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required parameter: query'
-            });
-        }
+        const { query = '', maxResults = 100 } = req.body;
 
         console.log(`[Clinical Trials] Searching for: "${query}", maxResults: ${maxResults}`);
 

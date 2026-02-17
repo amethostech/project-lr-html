@@ -22,8 +22,9 @@ export async function searchTrials(req, res) {
       keywords = keywords.map(k => k.value);
     }
 
-    if (!Array.isArray(keywords) || keywords.length === 0) {
-      return res.status(400).json({ error: "keywords must be a non-empty array" });
+    // Keywords are optional — allow searches with just date range or filters
+    if (!Array.isArray(keywords)) {
+      keywords = [];
     }
 
     // Respect user-specified limits; require at least 1; no hard cap

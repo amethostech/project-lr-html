@@ -466,13 +466,16 @@ async function performSingleDatabaseSearch(database) {
         .map(k => ({ value: k.value || "", operatorAfter: k.operatorAfter || "AND" }))
         .filter(k => k.value && k.value.trim().length > 0);
 
-    if (keywords.length === 0) return alert("Please enter at least one keyword.");
-
     // Read dateFrom/dateTo and maxResults
     const dateFrom = (document.getElementById("dateFrom") || {}).value || null;
     const dateTo = (document.getElementById("dateTo") || {}).value || null;
     const maxResultsInput = (document.getElementById("maxResults") || {}).value || "100";
     const maxResults = Math.min(Math.max(parseInt(maxResultsInput || "100", 10) || 1, 1), 10000);
+
+    // Allow empty keywords if user has a date range or db-specific filters set
+    if (keywords.length === 0 && !dateFrom && !dateTo && !Object.keys(state.dbParams[database] || {}).length) {
+        return alert("Please enter at least one keyword or a date range.");
+    }
 
     // regions (multi-select)
     const regionsSelect = document.getElementById("regions");
