@@ -164,7 +164,13 @@ export const searchAPIController = async (req, res) => {
         // Support email from JWT (userEmail) or body (email)
         const recipientEmail = req.userEmail || req.body.email || null;
 
-        let { from, to, query, database, maxResults, operator } = req.body;
+        let { from, to, dateFrom, dateTo, query, database, maxResults, operator } = req.body;
+
+        // Support both 'from'/'to' and 'dateFrom'/'dateTo' from different frontends
+        // Convert YYYY-MM-DD to YYYY/MM/DD format for NCBI EUtils
+        const formatDate = (d) => d ? d.replace(/-/g, '/') : null;
+        from = formatDate(from || dateFrom);
+        to = formatDate(to || dateTo);
 
         // Ensure we are only handling PubMed
         if (database && database.toLowerCase() !== 'pubmed') {

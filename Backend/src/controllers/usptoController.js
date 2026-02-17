@@ -154,15 +154,16 @@ async function processUsptoSearchAsync(recipientEmail, keywords, startYear, endY
 export const searchUsptoController = async (req, res) => {
     try {
         const recipientEmail = req.userEmail || req.body.email || null;
-        const { keywords, operator, startYear, endYear, page = 1, size = 10 } = req.body;
+        const { keywords, operator, startYear, endYear, dateFrom, dateTo, page = 1, size = 10 } = req.body;
 
         const queryKeywords = Array.isArray(keywords) ? keywords.join(', ') : keywords;
         if (!queryKeywords || queryKeywords.trim().length === 0) {
             return res.status(400).json({ success: false, error: 'Please provide search keywords' });
         }
 
-        const startDate = `${startYear}-01-01`;
-        const endDate = `${endYear}-12-31`;
+        // Support full dates (YYYY-MM-DD) from new frontend, or year-only from legacy
+        const startDate = dateFrom || (startYear ? `${startYear}-01-01` : '2000-01-01');
+        const endDate = dateTo || (endYear ? `${endYear}-12-31` : new Date().toISOString().slice(0, 10));
 
         const operatorTag = (operator && operator.toUpperCase() === 'AND') ? '_text_all' : '_text_any';
 
@@ -189,7 +190,7 @@ export const searchUsptoController = async (req, res) => {
             }
         };
 
-        console.log(`[USPTO] Running Search API Controller for: "${queryKeywords}" in range ${startYear}-${endYear}`);
+        console.log(`[USPTO] Running Search API Controller for: "${queryKeywords}" in range ${startDate} to ${endDate}`);
 
         const response = await fetch(PATENTSVIEW_URL, {
             method: 'POST',
@@ -240,7 +241,7 @@ export const searchUsptoController = async (req, res) => {
         // Trigger background email if email is available
         if (recipientEmail) {
             setImmediate(() => {
-                processUsptoSearchAsync(recipientEmail, queryKeywords, startYear, endYear, formattedResults).catch(err => {
+                processUsptoSearchAsync(recipientEmail, queryKeywords, startDate, endDate, formattedResults).catch(err => {
                     console.error('[USPTO] Background task error:', err.message);
                 });
             });

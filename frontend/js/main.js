@@ -496,7 +496,9 @@ async function performSingleDatabaseSearch(database) {
         payload = {
             keywords: keywordValues,
             operator: operator.toUpperCase(),
-            limit: maxResults
+            limit: maxResults,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined
         };
     } else if (isPubchem) {
         // PubChem expects: { molecule, bioassay, target_class }
