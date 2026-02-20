@@ -6,16 +6,15 @@ import { saveToConsolidatedExcel } from "../services/consolidatedExcelService.js
 import { normalizeResultsForConsolidated } from "../utils/consolidatedNormalizer.js";
 
 /**
- * Request body:
- * {
- *   "keywords": ["cancer","immunotherapy"],
- *   "maxPages": 2,
- *   "pageSize": 50
- * }
+ * POST /api/search
+ * Body: { keywords, query, pageSize, maxResults, phase, status, sponsor_type }
+ *
+ * Memory-efficient: fetchStudies now returns only formatted results (no raw data).
+ * Results are formatted page-by-page in the service, raw API data is discarded immediately.
  */
 export async function searchTrials(req, res) {
   try {
-    let { keywords, query, pageSize, maxResults, phase, status: trialStatus, sponsor_type } = req.body;
+    let { keywords, query, pageSize, maxResults, phase, status: trialStatus, sponsor_type, intervention, condition } = req.body;
 
     // Sanitize keywords if they are objects (which happens from frontend)
     if (Array.isArray(keywords) && keywords.length > 0 && typeof keywords[0] === 'object') {
@@ -27,72 +26,75 @@ export async function searchTrials(req, res) {
       keywords = [];
     }
 
-    // Respect user-specified limits
-    const parsedMax = parseInt(maxResults || 100, 10);
-    const effectiveMax = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 100;
+    // Parse limits
+    const parsedMax = parseInt(maxResults || 10000, 10);
+    const effectiveMax = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 10000;
     const parsedPageSize = parseInt(pageSize || 50, 10);
     const effectivePageSize = Number.isFinite(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 50;
 
-    // fetchStudies now paginates through ALL pages automatically
-    const { raw, formatted } = await fetchStudies({
+    logInfo(`[SearchController] Clinical search: query="${query}", maxResults=${effectiveMax}, phase=${phase}, status=${trialStatus}, intervention=${intervention}, condition=${condition}`);
+
+    // fetchStudies returns { formatted, totalFetched, pageCount } — NO raw data
+    const { formatted, totalFetched, pageCount } = await fetchStudies({
       keywords,
       customQuery: query,
       pageSize: effectivePageSize,
+      maxResults: effectiveMax,
       phase,
       status: trialStatus,
-      sponsor_type
+      sponsor_type,
+      intervention,
+      condition
     });
 
-    // Use all fetched results (pagination already handles full retrieval)
-    const limited = formatted;
+    logInfo(`[SearchController] Received ${formatted.length} formatted results from ${pageCount} pages`);
 
-    // Console log full raw backend response (for later inspection / saving to DB)
-    logInfo("=== Full raw ClinicalTrials data (server console) ===");
-    // print with some depth; Node console shows objects nicely
-    console.dir(raw, { depth: 2, colors: true });
+    // Generate Excel buffer from formatted results
+    const excelBuffer = await generateExcelBuffer(formatted);
 
-    // Generate Excel buffer
-    const excelBuffer = await generateExcelBuffer(limited);
-
-    // Also append to the single consolidated Excel file (normalized)
+    // Append to consolidated Excel (non-blocking failure)
     try {
-      const normalized = normalizeResultsForConsolidated(limited, 'ClinicalTrials');
+      const normalized = normalizeResultsForConsolidated(formatted, 'ClinicalTrials');
       await saveToConsolidatedExcel(normalized, 'ClinicalTrials');
       logInfo(`Consolidated Excel updated: ClinicalTrials (${normalized.length} records)`);
     } catch (excelErr) {
       logError("Failed to save ClinicalTrials results to consolidated Excel", excelErr);
     }
 
-    // Send email if user email is present
+    // Send email if user email is present (in background)
     const userEmail = req.userEmail;
     if (userEmail) {
-      try {
-        await sendEmailWithSendGrid(
-          userEmail,
-          "Clinical Trials Search Results",
-          "<p>Please find attached the search results for your Clinical Trials query.</p>",
-          {
-            content: excelBuffer,
-            filename: "clinical_trials_results.xlsx",
-            contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          }
-        );
-        logInfo(`Email sent to ${userEmail}`);
-      } catch (emailErr) {
-        logError("Failed to send email", emailErr);
-        // Don't fail the request if email fails, but maybe warn?
-        // continuing...
-      }
+      // Fire-and-forget: don't block the response
+      setImmediate(async () => {
+        try {
+          await sendEmailWithSendGrid(
+            userEmail,
+            "Clinical Trials Search Results",
+            `<p>Your Clinical Trials search returned ${formatted.length} results across ${pageCount} pages.</p>
+             <p>Please find the full results in the attached Excel file.</p>`,
+            {
+              content: excelBuffer,
+              filename: "clinical_trials_results.xlsx",
+              contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+          );
+          logInfo(`Email sent to ${userEmail}`);
+        } catch (emailErr) {
+          logError("Failed to send email", emailErr);
+        }
+      });
     }
 
-    // Minimal response to client
+    // Return results to frontend immediately
     res.json({
-      count: limited.length,
-      results: limited,
-      message: "Search successful. Results sent to your email."
+      count: formatted.length,
+      totalFetched,
+      pageCount,
+      results: formatted,
+      message: `Found ${formatted.length} clinical trials across ${pageCount} pages.${userEmail ? ' Results will be emailed shortly.' : ''}`
     });
   } catch (err) {
     logError("searchTrials error", err);
-    res.status(500).json({ error: "internal_server_error" });
+    res.status(500).json({ error: "internal_server_error", details: err.message });
   }
 }

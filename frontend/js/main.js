@@ -26,8 +26,44 @@ const DATABASES = [
         group: "Trials",
         fields: [
             { key: "phase", label: "Trial Phase", type: "select", opts: ["Phase 1", "Phase 2", "Phase 3", "Phase 4", "Any"] },
-            { key: "status", label: "Status", type: "select", opts: ["Recruiting", "Completed", "Terminated", "Any"] },
-            { key: "sponsor_type", label: "Sponsor Type", type: "select", opts: ["Industry", "Academic", "Govt", "Any"] }
+            {
+                key: "status",
+                label: "Status",
+                type: "select",
+                opts: [
+                    "Recruiting",
+                    "Completed",
+                    "Suspended",
+                    "Terminated",
+                    "Withdrawn",
+                    "Unknown",
+                    "Enrolling by invitation",
+                    "Active, not recruiting",
+                    "Not yet recruiting",
+                    "Any"
+                ]
+            },
+            { key: "sponsor_type", label: "Sponsor Type", type: "select", opts: ["Industry", "Academic", "Govt", "Any"] },
+            {
+                key: "intervention",
+                label: "Intervention Type",
+                type: "select",
+                opts: [
+                    "Drug",
+                    "Device",
+                    "Biological/Vaccine",
+                    "Procedure/Surgery",
+                    "Radiation",
+                    "Behavioral",
+                    "Genetic",
+                    "Dietary Supplement",
+                    "Combination Product",
+                    "Diagnostic Test",
+                    "Other",
+                    "Any"
+                ]
+            },
+            { key: "condition", label: "Condition (Keywords)", type: "text" }
         ]
     },
     {
@@ -84,9 +120,9 @@ const state = {
     keywords: [],
     dbParams: {},
     selectedDbs: new Set(),
-    searchResults: [], // Array of { database, results: [], timestamp }
-    activeDatabaseFilter: null, // null means show all
-    activeDocument: null // Currently selected document for viewing
+    searchResults: [],
+    activeDatabaseFilter: null,
+    activeDocument: null
 };
 
 /***************************************************************
@@ -140,7 +176,7 @@ function ensureStateKeywords() {
     while (state.keywords.length < 1) state.keywords.push({ value: "", operatorAfter: "AND" });
 }
 
-// Add/remove keyword handlers
+
 document.addEventListener("DOMContentLoaded", () => {
     const addBtn = document.getElementById("addKeyword");
     const remBtn = document.getElementById("removeKeyword");
@@ -170,7 +206,6 @@ function renderDbList() {
 
     const allCheckboxes = [];
 
-    // Only show databases that are actually supported by the backend.
     const SUPPORTED_DB_IDS = new Set(["pubmed", "google_scholar", "clinicaltrials", "patents", "pubchem"]);
 
     DATABASES.filter(db => SUPPORTED_DB_IDS.has(db.id)).forEach(db => {
@@ -245,7 +280,6 @@ function openDbModal(dbDef) {
     modalForm.style.maxHeight = "60vh";
     modalForm.style.overflow = "auto";
 
-    // populate fields with current saved params if any
     const current = state.dbParams[dbDef.id] || {};
 
     dbDef.fields.forEach(f => {
@@ -265,7 +299,6 @@ function openDbModal(dbDef) {
             fieldEl.type = "number";
             fieldEl.value = current[f.key] || "";
         } else {
-            // text or default
             fieldEl = document.createElement("input");
             fieldEl.type = "text";
             fieldEl.value = current[f.key] || "";
@@ -276,9 +309,7 @@ function openDbModal(dbDef) {
     });
 
     document.getElementById("modalCancel").addEventListener("click", () => {
-        // If user cancels and db wasn't previously saved, uncheck
         if (!state.dbParams[dbDef.id]) {
-            // uncheck checkbox in db list
             document.querySelector(`input[data-dbid="${dbDef.id}"]`).checked = false;
             state.selectedDbs.delete(dbDef.id);
         }
@@ -287,7 +318,6 @@ function openDbModal(dbDef) {
     });
 
     document.getElementById("modalSave").addEventListener("click", () => {
-        // collect values
         const inputs = modalForm.querySelectorAll("[data-field-key]");
         const params = {};
         inputs.forEach(inp => {
@@ -308,7 +338,6 @@ async function submitSearch() {
     const selectedDbs = Array.from(state.selectedDbs);
     const newsSelected = document.getElementById("newsArticles")?.checked || false;
 
-    // Require authentication for any outbound search
     const token = localStorage.getItem('token') || sessionStorage.getItem('token') ||
         (function getCookie(name) {
             const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -326,7 +355,6 @@ async function submitSearch() {
         return;
     }
 
-    // Run the curated news search first if requested
     if (newsSelected) {
         try {
             await performNewsArticlesSearch();
@@ -358,7 +386,7 @@ async function submitSearch() {
             }
         }
 
-        showStatus(`✅ Completed searches for ${selectedDbs.length} databases. All results saved to consolidated Excel!`, 7000);
+        showStatus(` Completed searches for ${selectedDbs.length} databases. All results saved to consolidated Excel!`, 7000);
         return;
     }
 
@@ -428,9 +456,9 @@ async function performNewsArticlesSearch() {
         }
 
         const msg = data.message || `News articles search submitted. Results will be emailed to ${data.recipientEmail || 'your email'} shortly.`;
-        showStatus(`✅ ${msg}`, 7000);
+        showStatus(` ${msg}`, 7000);
     } catch (err) {
-        console.error("❌ News articles search error:", err);
+        console.error("News articles search error:", err);
         const message = err.message || "Unknown error occurred";
         showStatus(`Error: ${message}`, 7000);
         alert(`News articles search failed: ${message}\n\nCheck browser console (F12) for more details.`);
@@ -461,7 +489,6 @@ async function performSingleDatabaseSearch(database) {
 
     const DYNAMIC_BACKEND_URL = `${API_BASE_URL}${endpointPath}`;
 
-    // --- Core Payload Construction ---
     const keywords = state.keywords
         .map(k => ({ value: k.value || "", operatorAfter: k.operatorAfter || "AND" }))
         .filter(k => k.value && k.value.trim().length > 0);
@@ -490,10 +517,8 @@ async function performSingleDatabaseSearch(database) {
         return i < keywords.length - 1 ? `${text} ${k.operatorAfter}` : text;
     }).join(' ');
 
-    // Build payload - different format for USPTO and PubChem
     let payload;
     if (isUspto) {
-        // USPTO expects: { keywords: string[], operator: "AND"|"OR", limit: number }
         const keywordValues = keywords.map(k => k.value);
         const operator = keywords.length > 1 ? keywords[0].operatorAfter || 'AND' : 'AND';
         payload = {
@@ -504,7 +529,6 @@ async function performSingleDatabaseSearch(database) {
             dateTo: dateTo || undefined
         };
     } else if (isPubchem) {
-        // PubChem expects: { molecule, bioassay, target_class }
         const pubParams = dbParams.pubchem || {};
         const moleculeVal = (pubParams.molecule && String(pubParams.molecule).trim()) || query || "";
         const bioassayVal = (pubParams.bioassay && String(pubParams.bioassay).trim()) || "Any";
@@ -517,6 +541,7 @@ async function performSingleDatabaseSearch(database) {
         };
     } else {
         // Standard payload for other databases
+        const clinicalParams = (database === 'clinicaltrials') ? (state.dbParams.clinicaltrials || {}) : {};
         payload = {
             timestamp: new Date().toISOString(),
             query,
@@ -528,11 +553,17 @@ async function performSingleDatabaseSearch(database) {
             regions: selectedRegions,
             selectedDbs: [database],
             dbParams,
-            source: "hostinger_frontend_v1"
+            source: "hostinger_frontend_v1",
+            ...(database === 'clinicaltrials' && {
+                phase: clinicalParams.phase || undefined,
+                status: clinicalParams.status || undefined,
+                sponsor_type: clinicalParams.sponsor_type || undefined,
+                intervention: clinicalParams.intervention || undefined,
+                condition: clinicalParams.condition || undefined
+            })
         };
     }
 
-    // --- Fetch Logic ---
 
     try {
         const token =
@@ -572,16 +603,12 @@ async function performSingleDatabaseSearch(database) {
             throw new Error(errorMsg);
         }
 
-        console.log("✅ Server response:", data);
+        console.log(" Server response:", data);
 
-        // Extract and store results for display
         let resultsToDisplay = [];
         if (isUspto) {
-            // USPTO returns: { success, results, total, shown, query, message }
-            // Note: Currently USPTO processes in background, so results may not be in response
             if (data && data.success && data.results && Array.isArray(data.results)) {
                 resultsToDisplay = data.results.map(result => {
-                    // Extract abstract from various possible fields
                     let abstract = result.abstract ||
                         result.abstractText ||
                         result.Abstract ||
@@ -593,12 +620,9 @@ async function performSingleDatabaseSearch(database) {
                         (result.description && Array.isArray(result.description) ? result.description.join(' ') : null) ||
                         'No abstract available';
 
-                    // If abstract is an array, join it
                     if (Array.isArray(abstract)) {
                         abstract = abstract.join(' ');
                     }
-
-                    // Extract title from various possible fields
                     const title = result.title ||
                         result.titleText ||
                         result.inventionTitle ||
@@ -607,7 +631,6 @@ async function performSingleDatabaseSearch(database) {
                         result.patentTitle ||
                         'Untitled Patent';
 
-                    // Extract publication year
                     const pubDate = result.pubDate ||
                         result.grantDate ||
                         result.publicationDate ||
@@ -618,7 +641,6 @@ async function performSingleDatabaseSearch(database) {
 
                     let pubYear = 'N/A';
                     if (pubDate) {
-                        // Try to extract year from date string
                         const yearMatch = String(pubDate).match(/(\d{4})/);
                         if (yearMatch) {
                             pubYear = yearMatch[1];
@@ -637,27 +659,23 @@ async function performSingleDatabaseSearch(database) {
                 });
                 showStatus(`Found ${data.total || 0} total results. Showing ${data.shown || 0} results. Saved to consolidated Excel!`, 7000);
             } else if (data && data.status === 'processing') {
-                // Background processing - results will be emailed
                 showStatus(`Search submitted! Results will be emailed to you. Check your email shortly.`, 7000);
             } else {
-                showStatus(data.message || "Submitted successfully ✅", 5000);
+                showStatus(data.message || "Submitted successfully ", 5000);
             }
         } else if (data && data.results && Array.isArray(data.results)) {
-            // Standard format: { count, results: [...] } - ClinicalTrials returns this
             resultsToDisplay = data.results;
             const dbName = DATABASES.find(db => db.id === database)?.label || database;
             showStatus(`Found ${data.count || resultsToDisplay.length} records from ${dbName}. Saved to consolidated Excel!`, 7000);
         } else if (data && data.status === 'processing' || data.status === 'success') {
-            // Background processing (PubMed, Google Scholar) - results will be emailed
             const dbName = DATABASES.find(db => db.id === database)?.label || database;
             showStatus(`Search submitted for ${dbName}! Results will be emailed to you. Check your email shortly.`, 7000);
         } else if (data && typeof data.count !== "undefined") {
             showStatus(`Found ${data.count} records from ${database}. Saved to consolidated Excel!`, 7000);
         } else {
-            showStatus("Submitted successfully ✅ - Results saved to consolidated Excel!", 5000);
+            showStatus("Submitted successfully  - Results saved to consolidated Excel!", 5000);
         }
 
-        // Store results for display (only if we have actual results)
         if (resultsToDisplay.length > 0) {
             const dbName = DATABASES.find(db => db.id === database)?.label || database;
             state.searchResults.push({
@@ -669,11 +687,11 @@ async function performSingleDatabaseSearch(database) {
             renderResults();
         }
     } catch (err) {
-        console.error("❌ Search error:", err);
+        console.error(" Search error:", err);
         const errorMessage = err.message || "Unknown error occurred";
         showStatus(`Error: ${errorMessage}`, 7000);
         alert(`Submission failed: ${errorMessage}\n\nCheck browser console (F12) for more details.`);
-        throw err; // Re-throw for multiple database handling
+        throw err;
     }
 }
 
@@ -698,7 +716,6 @@ function clearForm() {
         newsCheckbox.checked = false;
     }
     showStatus("Form cleared", 2000);
-    // Note: Search results are NOT cleared by clearForm - use "Clear Results" button in viewer
 }
 
 /***************************************************************
@@ -723,10 +740,8 @@ function renderResults() {
     if (viewerSection) viewerSection.style.display = "block";
     if (emptyState) emptyState.style.display = "none";
 
-    // Get all unique databases
     const uniqueDatabases = [...new Set(state.searchResults.map(r => r.database))];
 
-    // Show/hide database filters
     if (uniqueDatabases.length > 1) {
         databaseFilters.style.display = "block";
 
@@ -820,12 +835,9 @@ function renderResults() {
             e.stopPropagation();
             console.log("Document clicked:", docId, result);
             state.activeDocument = docId;
-            state._skipAutoRender = true; // Prevent auto-render in renderResults
-            // Store the result for the viewer (deep copy to avoid reference issues)
+            state._skipAutoRender = true;
             const selectedResult = JSON.parse(JSON.stringify(result));
-            // Re-render the list first to update active states
             renderResults();
-            // Then render the viewer with the selected document
             renderDocumentViewer(selectedResult);
         };
 
@@ -856,14 +868,11 @@ function renderResults() {
         resultsListContent.appendChild(item);
     });
 
-    // If there's an active document and we're not in a click handler, render it in the viewer
-    // (Click handler will render it separately to avoid conflicts)
     if (state.activeDocument && !state._skipAutoRender) {
         const activeDoc = filteredResults.find(r => `${r._database}_${r._index}` === state.activeDocument);
         if (activeDoc) {
             renderDocumentViewer(activeDoc);
         } else {
-            // Active document might be from a different filter, try to find it in all results
             let foundDoc = null;
             for (const dbResult of state.searchResults) {
                 for (let i = 0; i < dbResult.results.length; i++) {
@@ -890,12 +899,9 @@ function renderResults() {
         renderDocumentViewer(null);
     }
 
-    // Reset the flag after rendering
     if (state._skipAutoRender) {
         state._skipAutoRender = false;
     }
-
-    // Show clear results and download buttons
     clearResultsBtn.style.display = "block";
     const downloadBtn = document.getElementById("downloadDataBtn");
     if (downloadBtn) {
@@ -1012,7 +1018,6 @@ function downloadSearchResults() {
         return;
     }
 
-    // Flatten all results from all databases
     let allResults = [];
     state.searchResults.forEach(dbResult => {
         dbResult.results.forEach(result => {
@@ -1058,7 +1063,7 @@ function downloadSearchResults() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showStatus(`✅ Downloaded ${allResults.length} results as CSV`, 5000);
+    showStatus(`Downloaded ${allResults.length} results as CSV`, 5000);
 }
 
 /**
@@ -1068,7 +1073,6 @@ function convertToCSV(data, headers) {
     const escapeCSV = (value) => {
         if (value === null || value === undefined) return '';
         const str = String(value);
-        // Escape quotes and wrap in quotes if contains comma, quote, or newline
         if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
             return '"' + str.replace(/"/g, '""') + '"';
         }

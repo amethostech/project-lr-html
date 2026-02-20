@@ -7,7 +7,7 @@ import { fetchStudies } from '../services/clinicalService.js';
  */
 export const searchClinicalTrials = async (req, res) => {
     try {
-        const { query = '', maxResults = 100, operator = 'OR', phase, status: trialStatus, sponsor_type } = req.body;
+        const { query = '', maxResults = 100, operator = 'OR', phase, status: trialStatus, sponsor_type, intervention, condition } = req.body;
 
         console.log(`[Clinical Trials] Searching for: "${query}", maxResults: ${maxResults}`);
 
@@ -24,12 +24,15 @@ export const searchClinicalTrials = async (req, res) => {
 
         console.log(`[Clinical Trials] Using search term: "${searchQuery}" with operator: ${operator}`);
 
-        const { raw, formatted } = await fetchStudies({
+        const { formatted, totalFetched, pageCount } = await fetchStudies({
             customQuery: searchQuery,
             pageSize,
+            maxResults,
             phase,
             status: trialStatus,
-            sponsor_type
+            sponsor_type,
+            intervention,
+            condition
         });
 
         console.log(`[Clinical Trials] Found ${formatted.length} studies`);
