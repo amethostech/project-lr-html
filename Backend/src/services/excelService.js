@@ -11,7 +11,7 @@ export async function generateExcelBuffer(results) {
 
     // Get all unique keys from results
     const allKeys = results.length > 0 ? Object.keys(results[0]) : [];
-    
+
     // Define columns
     worksheet.columns = allKeys.map(key => ({
         header: key,
@@ -60,7 +60,7 @@ export async function appendToExcelFile(filename, results, sheetName = 'uspto re
         // Load existing workbook
         workbook = new ExcelJS.Workbook();
         await workbook.xlsx.readFile(filePath);
-        
+
         // Get or create the sheet
         if (workbook.getWorksheet(sheetName)) {
             worksheet = workbook.getWorksheet(sheetName);
@@ -205,7 +205,7 @@ export async function appendToConsolidatedExcel(filename, results, source = 'Unk
         // Load existing workbook
         workbook = new ExcelJS.Workbook();
         await workbook.xlsx.readFile(filePath);
-        
+
         // Get or create the consolidated sheet
         if (workbook.getWorksheet(sheetName)) {
             worksheet = workbook.getWorksheet(sheetName);
@@ -318,6 +318,13 @@ export async function appendToConsolidatedExcel(filename, results, source = 'Unk
     // Save workbook (raw consolidated data)
     await workbook.xlsx.writeFile(filePath);
 
+    // Free memory before running the clean view
+    workbook = null;
+    worksheet = null;
+
+    // Give garbage collector a tiny window to clean up
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     // Overwrite with cleaned/structured view so there is a single user-facing file
     try {
         await writeCleanConsolidatedView(filePath);
@@ -331,10 +338,10 @@ export async function appendToConsolidatedExcel(filename, results, source = 'Unk
  * - Merges Title/Study Title/Headline into "Title / Study Title"
  * - Merges Authors/Sponsor into "Authors / Sponsor"
  * - Keeps common columns in a preferred order; appends any extra columns at the end
- * - Trims whitespace and drops duplicate rows
+ * - Trims whitespace and drops duplicate rows (using logic optimized for low memory)
  */
 async function writeCleanConsolidatedView(sourceFile) {
-    const workbook = new ExcelJS.Workbook();
+    let workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(sourceFile);
     let sheet = workbook.getWorksheet('Consolidated Results');
     if (!sheet) {
@@ -356,6 +363,11 @@ async function writeCleanConsolidatedView(sourceFile) {
         });
         rows.push(obj);
     });
+
+    // Free memory of original workbook since we have the raw rows
+    sheet = null;
+    workbook = null;
+    await new Promise(resolve => setTimeout(resolve, 50)); // Yield
 
     const firstNonEmpty = (row, keys) => {
         for (const k of keys) {
@@ -408,13 +420,17 @@ async function writeCleanConsolidatedView(sourceFile) {
         return { ...merged, ...extras };
     });
 
-    // Drop duplicate rows (stringified)
+    // Drop duplicate rows (Memory optimization: don't stringify the entire object)
     const uniq = [];
     const seen = new Set();
     for (const row of cleanedRows) {
-        const key = JSON.stringify(row);
-        if (!seen.has(key)) {
-            seen.add(key);
+        // Use Identifier or Title as a fingerprint instead of the whole object (especially avoiding the Abstract)
+        let fingerprint = row['Identifier'] || row['Publication Number'];
+        if (!fingerprint) {
+            fingerprint = row['Title / Study Title'] || JSON.stringify(row); // fallback fast
+        }
+        if (!seen.has(fingerprint)) {
+            seen.add(fingerprint);
             uniq.push(row);
         }
     }

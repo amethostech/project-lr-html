@@ -52,14 +52,16 @@ export async function searchTrials(req, res) {
     // Generate Excel buffer from formatted results
     const excelBuffer = await generateExcelBuffer(formatted);
 
-    // Append to consolidated Excel (non-blocking failure)
-    try {
-      const normalized = normalizeResultsForConsolidated(formatted, 'ClinicalTrials');
-      await saveToConsolidatedExcel(normalized, 'ClinicalTrials');
-      logInfo(`Consolidated Excel updated: ClinicalTrials (${normalized.length} records)`);
-    } catch (excelErr) {
-      logError("Failed to save ClinicalTrials results to consolidated Excel", excelErr);
-    }
+    // Append to consolidated Excel in background (non-blocking)
+    setImmediate(async () => {
+      try {
+        const normalized = normalizeResultsForConsolidated(formatted, 'ClinicalTrials');
+        await saveToConsolidatedExcel(normalized, 'ClinicalTrials');
+        logInfo(`Consolidated Excel updated: ClinicalTrials (${normalized.length} records)`);
+      } catch (excelErr) {
+        logError("Failed to save ClinicalTrials results to consolidated Excel", excelErr);
+      }
+    });
 
     // Send email if user email is present (in background)
     const userEmail = req.userEmail;
