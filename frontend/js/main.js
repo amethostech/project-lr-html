@@ -16,7 +16,10 @@ const DATABASES = [
         group: "Molecules",
         fields: [
             { key: "molecule", label: "Molecule Name or CID", type: "text" },
-            { key: "bioassay", label: "BioAssay Type", type: "select", opts: ["Binding", "Functional", "ADME", "Any"] },
+            {
+                key: "bioassay", label: "BioAssay Type", type: "select",
+                opts: ["Any", "Screening", "Confirmatory", "Summary"]
+            },  
             { key: "target_class", label: "Target Class", type: "text" }
         ]
     },
@@ -537,7 +540,8 @@ async function performSingleDatabaseSearch(database) {
         payload = {
             molecule: moleculeVal,
             bioassay: bioassayVal,
-            target_class: targetClassVal
+            target_class: targetClassVal,
+            maxResults: maxResults
         };
     } else {
         // Standard payload for other databases
@@ -983,7 +987,7 @@ function renderDocumentViewer(docData) {
     // Add any additional fields that might be present
     const displayedKeys = new Set(['Title', 'title', 'Authors', 'authors', 'Author', 'Publication Year', 'year', 'pubYear',
         'Source', '_databaseLabel', 'DOI/PMID', 'DOI_PMID', 'doi', 'pmid', 'Abstract', 'abstract', 'snippet',
-        '_database', '_databaseLabel', '_index']);
+        '_database', '_databaseLabel', '_index', 'Molecule Name', 'CID', 'SMILES', 'Assay Name', 'Assay Type', 'Category', 'Target Class', 'AID']);
 
     Object.keys(docData).forEach(key => {
         if (!displayedKeys.has(key) && docData[key] && docData[key] !== 'N/A' && typeof docData[key] === 'string') {
@@ -996,12 +1000,84 @@ function renderDocumentViewer(docData) {
         }
     });
 
-    viewerContent.innerHTML = html || `
-        <p class="small" style="color: var(--muted); text-align: center; padding: 40px 0;">
-            No details available for this document.
-        </p>
-    `;
+    // Fetch mechanism of action for PubChem results
+    if (docData._database === 'pubchem' && (docData.CID || docData['Molecule Name'])) {
+        const compound = docData['Molecule Name'] || docData.CID;
+        
+        viewerContent.innerHTML = html || `
+            <p class="small" style="color: var(--muted); text-align: center; padding: 40px 0;">
+                No details available for this document.
+            </p>
+        `;
+        
+        // Add loading message and fetch mechanism
+        const mechanismSection = document.createElement('div');
+        mechanismSection.style.marginTop = '20px';
+        mechanismSection.style.paddingTop = '20px';
+        mechanismSection.style.borderTop = '1px solid var(--border)';
+        mechanismSection.innerHTML = '<p class="small" style="color: var(--muted); text-align: center;">Loading mechanism of action...</p>';
+        viewerContent.appendChild(mechanismSection);
+        
+        // Fetch mechanism asynchronously
+        fetchAndDisplayMechanism(compound, mechanismSection);
+    } else {
+        viewerContent.innerHTML = html || `
+            <p class="small" style="color: var(--muted); text-align: center; padding: 40px 0;">
+                No details available for this document.
+            </p>
+        `;
+    }
 }
+
+/**
+ * Fetch mechanism of action from backend and display it
+ */
+async function fetchAndDisplayMechanism(compound, targetElement) {
+    try {
+        const token =
+            localStorage.getItem('token') ||
+            sessionStorage.getItem('token') ||
+            (function getCookie(name) {
+                const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+                return m ? decodeURIComponent(m.pop()) : null;
+            })('token');
+
+        const headers = { "Content-Type": "application/json" };
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
+        const resp = await fetch(`${API_BASE_URL}/api/pubchem/mechanism`, {
+            method: "POST",
+            mode: "cors",
+            headers,
+            body: JSON.stringify({ compound })
+        });
+
+        const data = await resp.json();
+
+        if (resp.ok && data.success) {
+            let mechanismHtml = '<div class="document-field" style="margin-top: 0;">';
+            mechanismHtml += '<div class="document-field-label" style="margin-bottom: 10px;">Mechanism of Action:</div>';
+            
+            if (data.mechanismOfAction) {
+                mechanismHtml += `<div class="document-field-value abstract">${escapeHtml(data.mechanismOfAction)}</div>`;
+            } else if (data.hasData === false) {
+                mechanismHtml += '<p class="small" style="color: var(--muted);">No mechanism of action data available for this compound.</p>';
+            }
+            
+            mechanismHtml += '</div>';
+            targetElement.innerHTML = mechanismHtml;
+        } else {
+            const errorMsg = data.error || 'Unable to fetch mechanism of action';
+            targetElement.innerHTML = `<p class="small" style="color: var(--muted);">${escapeHtml(errorMsg)}</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching mechanism of action:', error);
+        targetElement.innerHTML = '<p class="small" style="color: var(--muted);">Error loading mechanism of action</p>';
+    }
+}
+
 
 function escapeHtml(text) {
     const div = document.createElement('div');
