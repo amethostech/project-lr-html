@@ -157,23 +157,32 @@ export async function searchPubMedUtil(query, dateFrom = null, dateTo = null, ma
             return { count: 0, results: [] };
         }
 
-        // Step 2: EFetch - Get full article details
-        const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(',')}&retmode=xml`;
-        console.log(`[PubMed Util] EFetch URL (first 200 chars): ${fetchUrl.substring(0, 200)}...`);
+        // Step 2: EFetch - Get full article details (batched to avoid 414 URI Too Long)
+        const BATCH_SIZE = 100;
+        let allResults = [];
 
-        const fetchResponse = await fetch(fetchUrl);
-        if (!fetchResponse.ok) {
-            throw new Error(`EFetch failed with status: ${fetchResponse.status}`);
+        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+            const batchIds = ids.slice(i, i + BATCH_SIZE);
+            const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${batchIds.join(',')}&retmode=xml`;
+            console.log(`[PubMed Util] EFetch batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(ids.length / BATCH_SIZE)} (${batchIds.length} IDs)`);
+
+            const fetchResponse = await fetch(fetchUrl);
+            if (!fetchResponse.ok) {
+                console.error(`[PubMed Util] EFetch batch failed with status: ${fetchResponse.status}, skipping batch`);
+                continue;
+            }
+
+            const xmlData = await fetchResponse.text();
+            console.log(`[PubMed Util] Received XML data, length: ${xmlData.length}`);
+
+            const batchResults = parseEFetchXML(xmlData, { term: query, dateFrom, dateTo });
+            console.log(`[PubMed Util] Parsed ${batchResults.length} articles from batch`);
+            allResults = allResults.concat(batchResults);
         }
 
-        const xmlData = await fetchResponse.text();
-        console.log(`[PubMed Util] Received XML data, length: ${xmlData.length}`);
+        console.log(`[PubMed Util] Total parsed: ${allResults.length} articles`);
 
-        // Step 3: Parse XML
-        const results = parseEFetchXML(xmlData, { term: query, dateFrom, dateTo });
-        console.log(`[PubMed Util] Parsed ${results.length} articles`);
-
-        return { count, results };
+        return { count, results: allResults };
 
     } catch (error) {
         console.error('[PubMed Util] Error:', error.message);

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Pipeline Executer</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; padding: 2rem; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    h1 { margin-top: 0; color: #1a1a1a; }
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: #4a4a4a; }
+    input[type="text"] { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }
+    button { background-color: #2563eb; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; font-weight: 600; cursor: pointer; width: 100%; }
+    button:hover { background-color: #1d4ed8; }
+    #status { margin-top: 1rem; padding: 1rem; border-radius: 4px; display: none; }
+    .status-info { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .status-error { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Fixed 13-Step Pipeline</h1>
+    <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem;">
+      Enter the parameters to execute the 13-step pipeline. Results will be emailed to your account.
+    </p>
+
+    <div class="form-group">
+      <label for="target">Target (e.g. EGFR)</label>
+      <input type="text" id="target" placeholder="Enter target...">
+    </div>
+
+    <div class="form-group">
+      <label for="therapeuticArea">Therapeutic Area (e.g. ONCO)</label>
+      <input type="text" id="therapeuticArea" placeholder="Enter therapeutic area...">
+    </div>
+
+    <div class="form-group">
+      <label for="affiliation">Affiliation (e.g. Mayo Clinic)</label>
+      <input type="text" id="affiliation" placeholder="Enter affiliation...">
+    </div>
+
+    <button id="runPipelineBtn">Run Pipeline</button>
+
+    <div id="status"></div>
+  </div>
+
+  <script type="module" src="../js/pipeline.js"></script>
+</body>
+</html>
